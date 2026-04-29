@@ -373,73 +373,64 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
 // ============== Products panel ==============
 function ProductsPanel({ brands, categories, products, brandId, categoryId, onCategoryChange, settings, onReload }: any) {
   const [editing, setEditing] = useState<Product | null>(null);
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [showAddProd, setShowAddProd] = useState(false);
+  const [pickCatThenTitle, setPickCatThenTitle] = useState<{ catId: string } | null>(null);
+  const [confirmDelBrand, setConfirmDelBrand] = useState(false);
+  const [confirmDelCat, setConfirmDelCat] = useState(false);
   const brand = brands.find((b: Brand) => b.id === brandId);
   const brandCats = brandId ? categories.filter((c: Category) => c.brand_id === brandId) : [];
+  const currentCat = brandCats.find((c: Category) => c.id === categoryId);
 
-  const addCategory = async () => {
-    if (!brandId) return;
-    const name = prompt("Category name (e.g. shoes, t-shirt)?")?.trim();
-    if (!name) return;
-    const { error } = await supabase.from("categories").insert({ brand_id: brandId, name, slug: slugify(name) });
-    if (error) { toast.error(error.message); return; }
-    onReload();
+  const startNewProduct = () => {
+    if (!brandId) { toast.error("Pick a brand from the sidebar first"); return; }
+    if (brandCats.length === 0) { toast.error("Create a category first (+ Category)"); return; }
+    if (categoryId) { setPickCatThenTitle({ catId: categoryId }); return; }
+    if (brandCats.length === 1) { setPickCatThenTitle({ catId: brandCats[0].id }); return; }
+    setShowAddProd(true); // will show category picker first
   };
 
-  const newProduct = async () => {
-    if (!brandId) { toast.error("Pick a brand from the sidebar first"); return; }
-    let catId = categoryId;
-    if (!catId) {
-      if (brandCats.length === 0) {
-        toast.error("Create a category first (button \"+ Category\")");
-        return;
-      }
-      // Ask user to pick one
-      const choice = prompt(
-        `Which category?\n\n${brandCats.map((c: Category, i: number) => `${i + 1}. ${c.name}`).join("\n")}\n\nType the number:`
-      );
-      const idx = parseInt((choice || "").trim(), 10) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= brandCats.length) { toast.error("Cancelled"); return; }
-      catId = brandCats[idx].id;
-    }
-    const title = prompt("Product title?")?.trim();
-    if (!title) return;
+  const createProduct = async (catId: string, title: string) => {
     const { data, error } = await supabase.from("products").insert({
       brand_id: brandId, category_id: catId, title, price: 15, currency: "USD"
     }).select().single();
     if (error) { toast.error(error.message); return; }
+    toast.success("Product created");
     onReload();
     setEditing(data as any);
   };
 
-  const deleteBrand = async () => {
-    if (!brand) return;
-    if (!confirm(`Delete brand "${brand.name}" and ALL its products?`)) return;
-    await supabase.from("brands").delete().eq("id", brand.id);
-    toast.success("Deleted");
+  const deleteCategory = async () => {
+    if (!currentCat) return;
+    await supabase.from("categories").delete().eq("id", currentCat.id);
+    toast.success("Category deleted");
+    onCategoryChange(null);
     onReload();
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-3xl font-black">{brand ? brand.name : "All Products"}</h1>
-        {brand && <button onClick={deleteBrand} className="text-destructive text-xs uppercase tracking-widest hover:underline">Delete brand</button>}
+        <h1 className="text-2xl md:text-3xl font-black truncate">{brand ? brand.name : "Choose a brand"}</h1>
+        {brand && <button onClick={() => setConfirmDelBrand(true)} className="text-destructive text-xs uppercase tracking-widest hover:underline shrink-0 ml-2">Delete brand</button>}
       </div>
-      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">{products.length} items</p>
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">
+        {brand ? `${products.length} item${products.length !== 1 ? "s" : ""}` : "Pick a brand from the sidebar →"}
+      </p>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {brandId && (
-          <>
-            <select value={categoryId ?? ""} onChange={(e) => onCategoryChange(e.target.value || null)} className="bg-card px-3 py-2 ink-border text-sm">
-              <option value="">All categories</option>
-              {brandCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <button onClick={addCategory} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 hover:bg-primary hover:text-primary-foreground"><Plus size={12} className="inline mr-1"/>Category</button>
-            <button onClick={newProduct} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 hover:opacity-90"><Plus size={12} className="inline mr-1"/>New Product</button>
-          </>
-        )}
-        {!brandId && <p className="text-sm text-muted-foreground">Pick a brand from the sidebar to add or edit products.</p>}
-      </div>
+      {brandId && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <select value={categoryId ?? ""} onChange={(e) => onCategoryChange(e.target.value || null)} className="bg-card px-3 py-2 ink-border text-sm min-w-[140px]">
+            <option value="">All categories</option>
+            {brandCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {currentCat && (
+            <button onClick={() => setConfirmDelCat(true)} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"><Trash2 size={12} className="inline mr-1"/>Cat.</button>
+          )}
+          <button onClick={() => setShowAddCat(true)} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 hover:bg-primary hover:text-primary-foreground"><Plus size={12} className="inline mr-1"/>Category</button>
+          <button onClick={startNewProduct} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 hover:opacity-90"><Plus size={12} className="inline mr-1"/>New Product</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {products.map((p: Product) => (
@@ -459,6 +450,67 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
       </div>
 
       {editing && <ProductEditor product={editing} settings={settings} onClose={() => { setEditing(null); onReload(); }}/>}
+
+      {showAddCat && (
+        <PromptModal
+          title="New category"
+          label="Category name"
+          placeholder="e.g. Shoes, T-shirts, Jackets"
+          onSubmit={async (name) => {
+            const { error } = await supabase.from("categories").insert({ brand_id: brandId, name, slug: slugify(name) });
+            if (error) { toast.error(error.message); return; }
+            toast.success("Category added");
+            onReload();
+          }}
+          onClose={() => setShowAddCat(false)}
+        />
+      )}
+
+      {showAddProd && (
+        <Modal title="Pick a category" onClose={() => setShowAddProd(false)}>
+          <p className="text-xs text-muted-foreground mb-3">Choose where this product belongs:</p>
+          <div className="flex flex-wrap gap-2">
+            {brandCats.map((c: Category) => (
+              <button key={c.id} onClick={() => { setShowAddProd(false); setPickCatThenTitle({ catId: c.id }); }}
+                className="px-3 py-2 ink-border text-sm bg-card hover:bg-primary hover:text-primary-foreground">{c.name}</button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {pickCatThenTitle && (
+        <PromptModal
+          title="New product"
+          label="Product title"
+          placeholder="e.g. Beta SL Jacket"
+          onSubmit={(title) => createProduct(pickCatThenTitle.catId, title)}
+          onClose={() => setPickCatThenTitle(null)}
+        />
+      )}
+
+      {confirmDelBrand && brand && (
+        <ConfirmModal
+          title="Delete brand"
+          message={`Delete brand "${brand.name}" and ALL its products? This cannot be undone.`}
+          danger
+          onConfirm={async () => {
+            await supabase.from("brands").delete().eq("id", brand.id);
+            toast.success("Brand deleted");
+            onReload();
+          }}
+          onClose={() => setConfirmDelBrand(false)}
+        />
+      )}
+
+      {confirmDelCat && currentCat && (
+        <ConfirmModal
+          title="Delete category"
+          message={`Delete category "${currentCat.name}" and ALL its products?`}
+          danger
+          onConfirm={deleteCategory}
+          onClose={() => setConfirmDelCat(false)}
+        />
+      )}
     </div>
   );
 }
