@@ -195,10 +195,6 @@ VALUES (
 
         <nav className="flex-1 overflow-y-auto">
           <button
-            onClick={() => { setView("products"); setNavOpen(false); }}
-            className={`w-full text-left px-3 py-2 text-xs font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "products" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
-          >Products</button>
-          <button
             onClick={() => { setView("messages"); setNavOpen(false); }}
             className={`w-full text-left px-3 py-2 text-xs font-bold uppercase tracking-widest border-b border-sidebar-border flex items-center justify-between ${view === "messages" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
           >
