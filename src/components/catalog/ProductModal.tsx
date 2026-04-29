@@ -212,9 +212,9 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
               className="bg-jade text-white font-bold uppercase tracking-widest py-4 text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
               <MessageCircle size={18}/> Order via WhatsApp
             </button>
-            <button onClick={addToCart} title={inCart ? "Remove from cart" : "Add to cart"}
-              className={`px-5 font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition ${inCart ? "bg-accent text-accent-foreground" : "bg-ink text-background hover:bg-primary"}`}>
-              {inCart ? <><Check size={16}/> In cart</> : <><ShoppingBag size={16}/> Add</>}
+            <button onClick={addToCart} title="Add to cart"
+              className={`px-5 font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition ${inCart ? "bg-accent text-accent-foreground hover:bg-primary" : "bg-ink text-background hover:bg-primary"}`}>
+              {inCart ? <><Check size={16}/> Add more</> : <><ShoppingBag size={16}/> Add</>}
             </button>
           </div>
         </div>
