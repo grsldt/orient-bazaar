@@ -424,11 +424,11 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-2xl md:text-3xl font-black truncate">{brand ? brand.name : "Choose a brand"}</h1>
+        <h1 className="text-2xl md:text-3xl font-black truncate">{brand ? brand.name : ""}</h1>
         {brand && <button onClick={() => setConfirmDelBrand(true)} className="text-destructive text-xs uppercase tracking-widest hover:underline shrink-0 ml-2">Delete brand</button>}
       </div>
       <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">
-        {brand ? `${products.length} item${products.length !== 1 ? "s" : ""}` : "Pick a brand from the sidebar →"}
+        {brand ? `${products.length} item${products.length !== 1 ? "s" : ""}` : ""}
       </p>
 
       {brandId && (
