@@ -108,7 +108,7 @@ const Index = () => {
         </div>
 
         {/* Grid */}
-        <section className="flex-1 p-1">
+        <section className="flex-1 p-3 md:p-5">
           {loading ? (
             <div className="grid-product">
               {Array.from({ length: 12 }).map((_, i) => (
