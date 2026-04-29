@@ -9,6 +9,76 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+// =============== Lightweight inline modals (replace native prompt/confirm) ===============
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  useScrollLock(true);
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] bg-ink/80 backdrop-blur-sm" onClick={onClose}/>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-card w-full max-w-sm ink-border pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h3 className="font-black text-base">{title}</h3>
+            <button onClick={onClose} className="hover:text-primary"><X size={18}/></button>
+          </div>
+          <div className="p-5">{children}</div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PromptModal({ title, label, placeholder, defaultValue = "", onSubmit, onClose }: { title: string; label?: string; placeholder?: string; defaultValue?: string; onSubmit: (v: string) => void; onClose: () => void; }) {
+  const [v, setV] = useState(defaultValue);
+  return (
+    <Modal title={title} onClose={onClose}>
+      {label && <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-2">{label}</label>}
+      <input
+        autoFocus
+        value={v}
+        placeholder={placeholder}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && v.trim()) { onSubmit(v.trim()); onClose(); } }}
+        className="w-full bg-background px-3 py-2.5 ink-border focus:outline-none focus:border-primary text-sm"
+      />
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onClose} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Cancel</button>
+        <button disabled={!v.trim()} onClick={() => { onSubmit(v.trim()); onClose(); }}
+          className="bg-primary text-primary-foreground px-5 py-2 text-xs uppercase tracking-widest font-bold disabled:opacity-50">OK</button>
+      </div>
+    </Modal>
+  );
+}
+
+function ConfirmModal({ title, message, danger, onConfirm, onClose }: { title: string; message: string; danger?: boolean; onConfirm: () => void; onClose: () => void; }) {
+  return (
+    <Modal title={title} onClose={onClose}>
+      <p className="text-sm text-foreground/90">{message}</p>
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onClose} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Cancel</button>
+        <button onClick={() => { onConfirm(); onClose(); }}
+          className={`px-5 py-2 text-xs uppercase tracking-widest font-bold ${danger ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground"}`}>Confirm</button>
+      </div>
+    </Modal>
+  );
+}
+
+function HexPicker({ onPick, onSkip }: { onPick: (hex: string) => void; onSkip: () => void }) {
+  const [hex, setHex] = useState("#000000");
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <input type="color" value={hex} onChange={(e) => setHex(e.target.value)} className="w-14 h-10 ink-border bg-background"/>
+        <input value={hex} onChange={(e) => setHex(e.target.value)} className="flex-1 bg-background px-3 py-2 ink-border focus:outline-none focus:border-primary text-sm font-mono"/>
+      </div>
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onSkip} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Skip</button>
+        <button onClick={() => onPick(hex)} className="bg-primary text-primary-foreground px-5 py-2 text-xs uppercase tracking-widest font-bold">Save color</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const nav = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
@@ -25,6 +95,7 @@ export default function Admin() {
   const [view, setView] = useState<"products" | "messages" | "settings">("products");
   const [unread, setUnread] = useState(0);
   const [navOpen, setNavOpen] = useState(false);
+  const [showAddBrand, setShowAddBrand] = useState(false);
 
   // Auth gate
   useEffect(() => {
@@ -143,7 +214,7 @@ VALUES (
             <>
               <div className="px-3 pt-3 pb-1.5 text-[10px] uppercase tracking-widest text-muted-foreground flex justify-between items-center">
                 <span>Brands ({brands.length})</span>
-                <button onClick={() => addBrand(reload)} className="text-primary hover:text-accent"><Plus size={14}/></button>
+                <button onClick={() => setShowAddBrand(true)} className="text-primary hover:text-accent" aria-label="Add brand"><Plus size={14}/></button>
               </div>
               <button
                 onClick={() => { setBrandId(null); setCategoryId(null); setNavOpen(false); }}
@@ -189,20 +260,25 @@ VALUES (
           />
         )}
       </main>
+      {showAddBrand && (
+        <PromptModal
+          title="New brand"
+          label="Brand name"
+          placeholder="e.g. Arcteryx"
+          onSubmit={async (name) => {
+            const slug = slugify(name);
+            const { error } = await supabase.from("brands").insert({ name, slug });
+            if (error) { toast.error(error.message); return; }
+            toast.success("Brand added");
+            reload();
+          }}
+          onClose={() => setShowAddBrand(false)}
+        />
+      )}
     </div>
   );
 }
 
-// ============== Brand quick add ==============
-async function addBrand(onDone: () => void) {
-  const name = prompt("Brand name?")?.trim();
-  if (!name) return;
-  const slug = slugify(name);
-  const { error } = await supabase.from("brands").insert({ name, slug });
-  if (error) { toast.error(error.message); return; }
-  toast.success("Brand added");
-  onDone();
-}
 
 // ============== Messages panel ==============
 function MessagesPanel() {
@@ -313,73 +389,64 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
 // ============== Products panel ==============
 function ProductsPanel({ brands, categories, products, brandId, categoryId, onCategoryChange, settings, onReload }: any) {
   const [editing, setEditing] = useState<Product | null>(null);
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [showAddProd, setShowAddProd] = useState(false);
+  const [pickCatThenTitle, setPickCatThenTitle] = useState<{ catId: string } | null>(null);
+  const [confirmDelBrand, setConfirmDelBrand] = useState(false);
+  const [confirmDelCat, setConfirmDelCat] = useState(false);
   const brand = brands.find((b: Brand) => b.id === brandId);
   const brandCats = brandId ? categories.filter((c: Category) => c.brand_id === brandId) : [];
+  const currentCat = brandCats.find((c: Category) => c.id === categoryId);
 
-  const addCategory = async () => {
-    if (!brandId) return;
-    const name = prompt("Category name (e.g. shoes, t-shirt)?")?.trim();
-    if (!name) return;
-    const { error } = await supabase.from("categories").insert({ brand_id: brandId, name, slug: slugify(name) });
-    if (error) { toast.error(error.message); return; }
-    onReload();
+  const startNewProduct = () => {
+    if (!brandId) { toast.error("Pick a brand from the sidebar first"); return; }
+    if (brandCats.length === 0) { toast.error("Create a category first (+ Category)"); return; }
+    if (categoryId) { setPickCatThenTitle({ catId: categoryId }); return; }
+    if (brandCats.length === 1) { setPickCatThenTitle({ catId: brandCats[0].id }); return; }
+    setShowAddProd(true); // will show category picker first
   };
 
-  const newProduct = async () => {
-    if (!brandId) { toast.error("Pick a brand from the sidebar first"); return; }
-    let catId = categoryId;
-    if (!catId) {
-      if (brandCats.length === 0) {
-        toast.error("Create a category first (button \"+ Category\")");
-        return;
-      }
-      // Ask user to pick one
-      const choice = prompt(
-        `Which category?\n\n${brandCats.map((c: Category, i: number) => `${i + 1}. ${c.name}`).join("\n")}\n\nType the number:`
-      );
-      const idx = parseInt((choice || "").trim(), 10) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= brandCats.length) { toast.error("Cancelled"); return; }
-      catId = brandCats[idx].id;
-    }
-    const title = prompt("Product title?")?.trim();
-    if (!title) return;
+  const createProduct = async (catId: string, title: string) => {
     const { data, error } = await supabase.from("products").insert({
       brand_id: brandId, category_id: catId, title, price: 15, currency: "USD"
     }).select().single();
     if (error) { toast.error(error.message); return; }
+    toast.success("Product created");
     onReload();
     setEditing(data as any);
   };
 
-  const deleteBrand = async () => {
-    if (!brand) return;
-    if (!confirm(`Delete brand "${brand.name}" and ALL its products?`)) return;
-    await supabase.from("brands").delete().eq("id", brand.id);
-    toast.success("Deleted");
+  const deleteCategory = async () => {
+    if (!currentCat) return;
+    await supabase.from("categories").delete().eq("id", currentCat.id);
+    toast.success("Category deleted");
+    onCategoryChange(null);
     onReload();
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <h1 className="text-3xl font-black">{brand ? brand.name : "All Products"}</h1>
-        {brand && <button onClick={deleteBrand} className="text-destructive text-xs uppercase tracking-widest hover:underline">Delete brand</button>}
+        <h1 className="text-2xl md:text-3xl font-black truncate">{brand ? brand.name : "Choose a brand"}</h1>
+        {brand && <button onClick={() => setConfirmDelBrand(true)} className="text-destructive text-xs uppercase tracking-widest hover:underline shrink-0 ml-2">Delete brand</button>}
       </div>
-      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">{products.length} items</p>
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">
+        {brand ? `${products.length} item${products.length !== 1 ? "s" : ""}` : "Pick a brand from the sidebar →"}
+      </p>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {brandId && (
-          <>
-            <select value={categoryId ?? ""} onChange={(e) => onCategoryChange(e.target.value || null)} className="bg-card px-3 py-2 ink-border text-sm">
-              <option value="">All categories</option>
-              {brandCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <button onClick={addCategory} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 hover:bg-primary hover:text-primary-foreground"><Plus size={12} className="inline mr-1"/>Category</button>
-            <button onClick={newProduct} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 hover:opacity-90"><Plus size={12} className="inline mr-1"/>New Product</button>
-          </>
-        )}
-        {!brandId && <p className="text-sm text-muted-foreground">Pick a brand from the sidebar to add or edit products.</p>}
-      </div>
+      {brandId && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          <select value={categoryId ?? ""} onChange={(e) => onCategoryChange(e.target.value || null)} className="bg-card px-3 py-2 ink-border text-sm min-w-[140px]">
+            <option value="">All categories</option>
+            {brandCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {currentCat && (
+            <button onClick={() => setConfirmDelCat(true)} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 text-destructive hover:bg-destructive hover:text-destructive-foreground"><Trash2 size={12} className="inline mr-1"/>Cat.</button>
+          )}
+          <button onClick={() => setShowAddCat(true)} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 hover:bg-primary hover:text-primary-foreground"><Plus size={12} className="inline mr-1"/>Category</button>
+          <button onClick={startNewProduct} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 hover:opacity-90"><Plus size={12} className="inline mr-1"/>New Product</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {products.map((p: Product) => (
@@ -399,6 +466,67 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
       </div>
 
       {editing && <ProductEditor product={editing} settings={settings} onClose={() => { setEditing(null); onReload(); }}/>}
+
+      {showAddCat && (
+        <PromptModal
+          title="New category"
+          label="Category name"
+          placeholder="e.g. Shoes, T-shirts, Jackets"
+          onSubmit={async (name) => {
+            const { error } = await supabase.from("categories").insert({ brand_id: brandId, name, slug: slugify(name) });
+            if (error) { toast.error(error.message); return; }
+            toast.success("Category added");
+            onReload();
+          }}
+          onClose={() => setShowAddCat(false)}
+        />
+      )}
+
+      {showAddProd && (
+        <Modal title="Pick a category" onClose={() => setShowAddProd(false)}>
+          <p className="text-xs text-muted-foreground mb-3">Choose where this product belongs:</p>
+          <div className="flex flex-wrap gap-2">
+            {brandCats.map((c: Category) => (
+              <button key={c.id} onClick={() => { setShowAddProd(false); setPickCatThenTitle({ catId: c.id }); }}
+                className="px-3 py-2 ink-border text-sm bg-card hover:bg-primary hover:text-primary-foreground">{c.name}</button>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {pickCatThenTitle && (
+        <PromptModal
+          title="New product"
+          label="Product title"
+          placeholder="e.g. Beta SL Jacket"
+          onSubmit={(title) => createProduct(pickCatThenTitle.catId, title)}
+          onClose={() => setPickCatThenTitle(null)}
+        />
+      )}
+
+      {confirmDelBrand && brand && (
+        <ConfirmModal
+          title="Delete brand"
+          message={`Delete brand "${brand.name}" and ALL its products? This cannot be undone.`}
+          danger
+          onConfirm={async () => {
+            await supabase.from("brands").delete().eq("id", brand.id);
+            toast.success("Brand deleted");
+            onReload();
+          }}
+          onClose={() => setConfirmDelBrand(false)}
+        />
+      )}
+
+      {confirmDelCat && currentCat && (
+        <ConfirmModal
+          title="Delete category"
+          message={`Delete category "${currentCat.name}" and ALL its products?`}
+          danger
+          onConfirm={deleteCategory}
+          onClose={() => setConfirmDelCat(false)}
+        />
+      )}
     </div>
   );
 }
@@ -410,6 +538,11 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   const [sizes, setSizes] = useState(product.sizes ?? []);
   const [colors, setColors] = useState(product.colors ?? []);
   const [busy, setBusy] = useState(false);
+  const [showAddUrl, setShowAddUrl] = useState(false);
+  const [showAddSize, setShowAddSize] = useState(false);
+  const [colorStep, setColorStep] = useState<{ name: string } | null>(null);
+  const [showAddColor, setShowAddColor] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   useScrollLock(true);
 
   const save = async () => {
@@ -425,7 +558,6 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   };
 
   const del = async () => {
-    if (!confirm(`Delete "${p.title}"?`)) return;
     await supabase.from("products").delete().eq("id", p.id);
     toast.success("Deleted");
     onClose();
@@ -445,9 +577,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     setBusy(false);
   };
 
-  const addUrlImage = async () => {
-    const url = prompt("Image URL or relative path (e.g. brand/category/file.jpg)?")?.trim();
-    if (!url) return;
+  const addUrlImage = async (url: string) => {
     const next = imgs.length;
     const { data, error } = await supabase.from("product_images").insert({ product_id: p.id, url, sort_order: next }).select().single();
     if (error) { toast.error(error.message); return; }
@@ -468,9 +598,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     await Promise.all(next.map((im, idx) => supabase.from("product_images").update({ sort_order: idx }).eq("id", im.id)));
   };
 
-  const addSize = async () => {
-    const s = prompt("Size (e.g. M, 42, XL)?")?.trim();
-    if (!s) return;
+  const addSize = async (s: string) => {
     const { data, error } = await supabase.from("product_sizes").insert({ product_id: p.id, size: s, sort_order: sizes.length }).select().single();
     if (error) { toast.error(error.message); return; }
     setSizes((cur) => [...cur, data as any]);
@@ -480,10 +608,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     setSizes((cur) => cur.filter((s) => s.id !== id));
   };
 
-  const addColor = async () => {
-    const name = prompt("Color name (e.g. Black, Red)?")?.trim();
-    if (!name) return;
-    const hex = prompt("Color hex code (optional, e.g. #000000)?")?.trim() || null;
+  const addColor = async (name: string, hex: string | null) => {
     const { data, error } = await supabase.from("product_colors").insert({ product_id: p.id, name, hex, sort_order: colors.length }).select().single();
     if (error) { toast.error(error.message); return; }
     setColors((cur) => [...cur, data as any]);
@@ -532,7 +657,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs uppercase tracking-widest text-muted-foreground">Photos ({imgs.length})</label>
                 <div className="flex gap-2">
-                  <button onClick={addUrlImage} className="text-[10px] uppercase tracking-widest bg-card ink-border px-2 py-1 hover:bg-primary hover:text-primary-foreground">Add URL</button>
+                  <button onClick={() => setShowAddUrl(true)} className="text-[10px] uppercase tracking-widest bg-card ink-border px-2 py-1 hover:bg-primary hover:text-primary-foreground">Add URL</button>
                   <label className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1 cursor-pointer flex items-center gap-1"><Upload size={10}/> Upload
                     <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => upload(e.target.files)}/>
                   </label>
@@ -558,7 +683,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs uppercase tracking-widest text-muted-foreground">Sizes — leave empty if N/A ({sizes.length})</label>
-                <button onClick={addSize} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
+                <button onClick={() => setShowAddSize(true)} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {sizes.map((s) => (
@@ -574,7 +699,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs uppercase tracking-widest text-muted-foreground">Colors — only those visible on photos ({colors.length})</label>
-                <button onClick={addColor} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
+                <button onClick={() => setShowAddColor(true)} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {colors.map((c) => (
@@ -589,7 +714,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
           </div>
 
           <div className="flex items-center justify-between p-4 border-t border-border bg-muted">
-            <button onClick={del} className="text-destructive text-xs uppercase tracking-widest hover:underline flex items-center gap-1"><Trash2 size={12}/> Delete product</button>
+            <button onClick={() => setConfirmDel(true)} className="text-destructive text-xs uppercase tracking-widest hover:underline flex items-center gap-1"><Trash2 size={12}/> Delete product</button>
             <div className="flex gap-2">
               <button onClick={onClose} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Cancel</button>
               <button onClick={save} disabled={busy} className="bg-primary text-primary-foreground px-6 py-2 text-xs uppercase tracking-widest font-bold disabled:opacity-50">{busy ? "..." : "Save"}</button>
@@ -597,6 +722,31 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
           </div>
         </div>
       </div>
+
+      {showAddUrl && (
+        <PromptModal title="Add image by URL" label="URL or relative path"
+          placeholder="https://… or brand/category/file.jpg"
+          onSubmit={addUrlImage} onClose={() => setShowAddUrl(false)}/>
+      )}
+      {showAddSize && (
+        <PromptModal title="Add size" label="Size value" placeholder="e.g. M, 42, XL"
+          onSubmit={addSize} onClose={() => setShowAddSize(false)}/>
+      )}
+      {showAddColor && (
+        <PromptModal title="Add color" label="Color name" placeholder="e.g. Black"
+          onSubmit={(name) => { setColorStep({ name }); }}
+          onClose={() => setShowAddColor(false)}/>
+      )}
+      {colorStep && (
+        <Modal title={`Hex for "${colorStep.name}"`} onClose={() => setColorStep(null)}>
+          <p className="text-xs text-muted-foreground mb-3">Optional — used for the color swatch dot.</p>
+          <HexPicker onPick={(hex) => { addColor(colorStep.name, hex); setColorStep(null); }} onSkip={() => { addColor(colorStep.name, null); setColorStep(null); }}/>
+        </Modal>
+      )}
+      {confirmDel && (
+        <ConfirmModal title="Delete product" message={`Delete "${p.title}"? This cannot be undone.`} danger
+          onConfirm={del} onClose={() => setConfirmDel(false)}/>
+      )}
     </>
   );
 }

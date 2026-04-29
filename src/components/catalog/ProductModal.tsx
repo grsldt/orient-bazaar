@@ -180,11 +180,12 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
               <div className="mb-4">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">
                   Size {size && <span className="text-foreground normal-case tracking-normal">· {size}</span>}
+                  {!size && <span className="ml-1 text-primary normal-case tracking-normal">— required</span>}
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-1.5">
                   {sizes.map((sv) => (
                     <button key={sv} onClick={() => setSize(sv)}
-                      className={`min-w-[42px] px-3 py-1.5 text-xs font-bold border-2 transition ${size === sv ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-foreground/40"}`}>
+                      className={`h-11 text-sm font-bold border-2 transition ${size === sv ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-foreground/40"}`}>
                       {sv}
                     </button>
                   ))}
