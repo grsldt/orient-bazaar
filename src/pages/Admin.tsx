@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Brand, Category, Product, SiteSettings, fetchBrands, fetchCategories, fetchProducts, fetchSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
 import { Logo } from "@/components/catalog/Logo";
 import { toast } from "sonner";
-import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon, Mail } from "lucide-react";
+import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon, Mail, Menu } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -24,6 +24,7 @@ export default function Admin() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [view, setView] = useState<"products" | "messages" | "settings">("products");
   const [unread, setUnread] = useState(0);
+  const [navOpen, setNavOpen] = useState(false);
 
   // Auth gate
   useEffect(() => {
@@ -94,65 +95,83 @@ VALUES (
   const reloadProducts = () => fetchProducts({ brandId, categoryId }).then(setProducts);
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen md:flex bg-background">
+      {/* Mobile topbar */}
+      <div className="md:hidden sticky top-0 z-30 bg-ink text-background flex items-center justify-between px-3 py-2 border-b-2 border-primary">
+        <button onClick={() => setNavOpen(true)} aria-label="Menu" className="p-2 -ml-2"><Menu size={20}/></button>
+        <div className="text-xs uppercase tracking-widest font-bold">Admin · {view}</div>
+        <button onClick={() => nav("/")} className="text-[10px] uppercase tracking-widest p-2">Site →</button>
+      </div>
+
+      {/* Mobile overlay */}
+      {navOpen && (
+        <div className="fixed inset-0 z-40 bg-ink/70 backdrop-blur-sm md:hidden" onClick={() => setNavOpen(false)} aria-hidden/>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 md:w-72 shrink-0 bg-ink text-sidebar-foreground flex flex-col h-screen sticky top-0 overflow-hidden">
-        <div className="p-5 border-b border-sidebar-border"><Logo size="md"/></div>
-        <div className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-sidebar-border min-w-0">
+      <aside className={`bg-ink text-sidebar-foreground flex flex-col overflow-hidden
+        fixed inset-y-0 left-0 z-50 w-[80vw] max-w-[260px] transform transition-transform duration-300
+        ${navOpen ? "translate-x-0" : "-translate-x-full"}
+        md:static md:translate-x-0 md:w-56 lg:w-60 md:shrink-0 md:h-screen md:sticky md:top-0`}>
+        <div className="p-3 md:p-4 border-b border-sidebar-border flex items-center justify-between">
+          <Logo size="sm"/>
+          <button onClick={() => setNavOpen(false)} className="md:hidden p-1 hover:text-primary" aria-label="Close"><X size={18}/></button>
+        </div>
+        <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-sidebar-border min-w-0">
           <div className="opacity-70">Admin</div>
           <div className="truncate normal-case tracking-normal text-sidebar-foreground" title={userEmail}>{userEmail}</div>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
           <button
-            onClick={() => setView("products")}
-            className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "products" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+            onClick={() => { setView("products"); setNavOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-xs font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "products" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
           >Products</button>
           <button
-            onClick={() => setView("messages")}
-            className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border flex items-center justify-between ${view === "messages" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+            onClick={() => { setView("messages"); setNavOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-xs font-bold uppercase tracking-widest border-b border-sidebar-border flex items-center justify-between ${view === "messages" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
           >
-            <span><Mail size={12} className="inline mr-1.5"/>Messages</span>
+            <span><Mail size={11} className="inline mr-1.5"/>Messages</span>
             {unread > 0 && <span className="bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-full">{unread}</span>}
           </button>
           <button
-            onClick={() => setView("settings")}
-            className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
-          ><SettingsIcon size={12} className="inline mr-1.5"/>Settings</button>
+            onClick={() => { setView("settings"); setNavOpen(false); }}
+            className={`w-full text-left px-3 py-2 text-xs font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+          ><SettingsIcon size={11} className="inline mr-1.5"/>Settings</button>
 
           {view === "products" && (
             <>
-              <div className="px-3 pt-4 pb-2 text-[10px] uppercase tracking-widest text-muted-foreground flex justify-between items-center">
+              <div className="px-3 pt-3 pb-1.5 text-[10px] uppercase tracking-widest text-muted-foreground flex justify-between items-center">
                 <span>Brands ({brands.length})</span>
                 <button onClick={() => addBrand(reload)} className="text-primary hover:text-accent"><Plus size={14}/></button>
               </div>
               <button
-                onClick={() => { setBrandId(null); setCategoryId(null); }}
-                className={`w-full text-left px-4 py-2 text-sm border-b border-sidebar-border/40 ${brandId === null ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+                onClick={() => { setBrandId(null); setCategoryId(null); setNavOpen(false); }}
+                className={`w-full text-left px-3 py-1.5 text-xs border-b border-sidebar-border/40 ${brandId === null ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
               >All</button>
               {brands.map((b) => (
                 <button key={b.id}
-                  onClick={() => { setBrandId(b.id); setCategoryId(null); }}
-                  className={`w-full text-left px-4 py-2 text-sm border-b border-sidebar-border/40 ${brandId === b.id ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+                  onClick={() => { setBrandId(b.id); setCategoryId(null); setNavOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-xs border-b border-sidebar-border/40 ${brandId === b.id ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
                 >{b.name}</button>
               ))}
             </>
           )}
         </nav>
 
-        <div className="p-3 border-t border-sidebar-border space-y-2">
+        <div className="p-2 border-t border-sidebar-border space-y-1.5">
           <button
             onClick={() => nav("/")}
-            className="w-full text-xs uppercase tracking-widest bg-sidebar-accent py-2 hover:bg-primary hover:text-primary-foreground"
+            className="w-full text-[10px] uppercase tracking-widest bg-sidebar-accent py-1.5 hover:bg-primary hover:text-primary-foreground"
           >View Site →</button>
           <button
             onClick={async () => { await supabase.auth.signOut(); nav("/"); }}
-            className="w-full text-xs uppercase tracking-widest bg-sidebar-accent py-2 hover:bg-destructive flex items-center justify-center gap-1"
-          ><LogOut size={12}/> Sign Out</button>
+            className="w-full text-[10px] uppercase tracking-widest bg-sidebar-accent py-1.5 hover:bg-destructive flex items-center justify-center gap-1"
+          ><LogOut size={11}/> Sign Out</button>
         </div>
       </aside>
 
-      <main className="flex-1 p-6 overflow-x-hidden">
+      <main className="flex-1 p-4 md:p-6 overflow-x-hidden min-w-0">
         {view === "settings" && settings ? (
           <SettingsPanel settings={settings} onSaved={reload}/>
         ) : view === "messages" ? (
@@ -307,11 +326,25 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
   };
 
   const newProduct = async () => {
-    if (!brandId || !categoryId) { toast.error("Pick a brand and category first"); return; }
+    if (!brandId) { toast.error("Pick a brand from the sidebar first"); return; }
+    let catId = categoryId;
+    if (!catId) {
+      if (brandCats.length === 0) {
+        toast.error("Create a category first (button \"+ Category\")");
+        return;
+      }
+      // Ask user to pick one
+      const choice = prompt(
+        `Which category?\n\n${brandCats.map((c: Category, i: number) => `${i + 1}. ${c.name}`).join("\n")}\n\nType the number:`
+      );
+      const idx = parseInt((choice || "").trim(), 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= brandCats.length) { toast.error("Cancelled"); return; }
+      catId = brandCats[idx].id;
+    }
     const title = prompt("Product title?")?.trim();
     if (!title) return;
     const { data, error } = await supabase.from("products").insert({
-      brand_id: brandId, category_id: categoryId, title, price: 15, currency: "USD"
+      brand_id: brandId, category_id: catId, title, price: 15, currency: "USD"
     }).select().single();
     if (error) { toast.error(error.message); return; }
     onReload();
@@ -342,7 +375,7 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
               {brandCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button onClick={addCategory} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 hover:bg-primary hover:text-primary-foreground"><Plus size={12} className="inline mr-1"/>Category</button>
-            <button onClick={newProduct} disabled={!categoryId} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 disabled:opacity-50"><Plus size={12} className="inline mr-1"/>New Product</button>
+            <button onClick={newProduct} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 hover:opacity-90"><Plus size={12} className="inline mr-1"/>New Product</button>
           </>
         )}
         {!brandId && <p className="text-sm text-muted-foreground">Pick a brand from the sidebar to add or edit products.</p>}

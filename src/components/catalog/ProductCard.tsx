@@ -1,6 +1,6 @@
-import { Product, SiteSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
+import { Product, SiteSettings, thumbUrl, formatPrice } from "@/lib/catalog";
 import { useState } from "react";
-import { Heart } from "lucide-react";
+import { ShoppingBag, Check } from "lucide-react";
 import { useLocalList } from "@/hooks/useLocalList";
 
 interface Props {
@@ -13,14 +13,10 @@ interface Props {
 export const ProductCard = ({ product, settings, brandName, onClick }: Props) => {
   const [imgIdx, setImgIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const favorites = useLocalList("ls_favorites");
+  const cart = useLocalList("ls_cart");
   const imgs = product.images ?? [];
   const main = imgs[imgIdx] ?? imgs[0];
-  const isFav = favorites.has(product.id);
-  // "New" if created in last 14 days
-  const isNew = (product as any).created_at
-    ? (Date.now() - new Date((product as any).created_at).getTime()) < 14 * 86400000
-    : false;
+  const inCart = cart.has(product.id);
 
   return (
     <div
@@ -36,10 +32,12 @@ export const ProductCard = ({ product, settings, brandName, onClick }: Props) =>
         <div className="aspect-square bg-muted relative overflow-hidden">
           {main && (
             <img
-              src={resolveImageUrl(main.url, settings.image_base_url)}
+              src={thumbUrl(main.url, settings.image_base_url, 480)}
               alt={product.title}
               loading="lazy"
               decoding="async"
+              width={480}
+              height={480}
               onLoad={() => setLoaded(true)}
               className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
             />
@@ -49,9 +47,6 @@ export const ProductCard = ({ product, settings, brandName, onClick }: Props) =>
             <div className="absolute top-1.5 right-1.5 bg-ink/80 text-background text-[10px] font-bold px-1.5 py-0.5">
               {imgs.length} 图
             </div>
-          )}
-          {isNew && (
-            <div className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 uppercase tracking-widest">New</div>
           )}
           {product.whatsapp_only ? (
             <div className="absolute bottom-0 left-0 stamp">WhatsApp</div>
@@ -65,11 +60,19 @@ export const ProductCard = ({ product, settings, brandName, onClick }: Props) =>
         </div>
       </button>
       <button
-        onClick={(e) => { e.stopPropagation(); favorites.toggle(product.id); }}
-        className="absolute bottom-2 right-2 w-8 h-8 bg-card/90 backdrop-blur ink-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100 focus:opacity-100"
-        aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (inCart) cart.remove(product.id);
+          else cart.add(product.id);
+        }}
+        className={`absolute bottom-1 right-1 px-2.5 h-9 ink-border flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-widest transition shadow-md ${
+          inCart
+            ? "bg-jade text-white"
+            : "bg-card text-foreground hover:bg-primary hover:text-primary-foreground"
+        }`}
+        aria-label={inCart ? "Remove from cart" : "Add to cart"}
       >
-        <Heart size={14} className={isFav ? "fill-primary text-primary" : ""}/>
+        {inCart ? <><Check size={13}/> Added</> : <><ShoppingBag size={13}/> Add</>}
       </button>
     </div>
   );

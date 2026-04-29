@@ -1,6 +1,6 @@
-import { Product, SiteSettings, resolveImageUrl, buildWhatsappUrl, formatPrice } from "@/lib/catalog";
+import { Product, SiteSettings, resolveImageUrl, thumbUrl, buildWhatsappUrl, formatPrice, defaultSizesFor } from "@/lib/catalog";
 import { useEffect, useRef, useState } from "react";
-import { X, ChevronLeft, ChevronRight, MessageCircle, Heart, Share2, ShoppingBag } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, MessageCircle, Share2, ShoppingBag, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useLocalList } from "@/hooks/useLocalList";
@@ -19,7 +19,6 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
   const [color, setColor] = useState<string>("");
   const touchStart = useRef<number | null>(null);
 
-  const favorites = useLocalList("ls_favorites");
   const cart = useLocalList("ls_cart");
 
   useScrollLock(!!product);
@@ -39,7 +38,11 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
 
   if (!product) return null;
   const imgs = product.images ?? [];
-  const sizes = product.sizes ?? [];
+  // Use saved sizes if any, otherwise auto-generate from category type
+  const savedSizes = product.sizes ?? [];
+  const sizes = savedSizes.length > 0
+    ? savedSizes.map((s) => s.size)
+    : defaultSizesFor(categoryName);
   const colors = product.colors ?? [];
   const len = imgs.length || 1;
 
@@ -77,9 +80,10 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
   };
 
   const addToCart = () => {
-    cart.add(product.id);
-    toast.success("Added to selection — open the cart to send all at once");
+    if (cart.has(product.id)) { cart.remove(product.id); toast("Removed from cart"); }
+    else { cart.add(product.id); toast.success("Added to cart"); }
   };
+  const inCart = cart.has(product.id);
 
   return (
     <div
@@ -98,9 +102,6 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
             {brandName} {categoryName && `· ${categoryName}`}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => favorites.toggle(product.id)} aria-label="Favorite" className="p-2 hover:text-primary">
-              <Heart size={18} className={favorites.has(product.id) ? "fill-primary text-primary" : ""}/>
-            </button>
             <button onClick={share} aria-label="Share" className="p-2 hover:text-primary"><Share2 size={18}/></button>
             <button onClick={onClose} aria-label="Close" className="p-2 hover:text-primary"><X size={20}/></button>
           </div>
@@ -140,9 +141,6 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
               {brandName} {categoryName && `· ${categoryName}`}
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <button onClick={() => favorites.toggle(product.id)} aria-label="Favorite" className="p-1.5 hover:text-primary">
-                <Heart size={16} className={favorites.has(product.id) ? "fill-primary text-primary" : ""}/>
-              </button>
               <button onClick={share} aria-label="Share" className="p-1.5 hover:text-primary"><Share2 size={16}/></button>
               <button onClick={onClose} aria-label="Close" className="p-1.5 hover:text-primary"><X size={18}/></button>
             </div>
@@ -182,10 +180,10 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
                   Size {size && <span className="text-foreground normal-case tracking-normal">· {size}</span>}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {sizes.map((s) => (
-                    <button key={s.id} onClick={() => setSize(s.size)}
-                      className={`min-w-[42px] px-3 py-1.5 text-xs font-bold border-2 transition ${size === s.size ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-foreground/40"}`}>
-                      {s.size}
+                  {sizes.map((sv) => (
+                    <button key={sv} onClick={() => setSize(sv)}
+                      className={`min-w-[42px] px-3 py-1.5 text-xs font-bold border-2 transition ${size === sv ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-foreground/40"}`}>
+                      {sv}
                     </button>
                   ))}
                 </div>
@@ -199,7 +197,7 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
                   {imgs.map((im, i) => (
                     <button key={im.id} onClick={() => setIdx(i)}
                       className={`aspect-square overflow-hidden border-2 transition ${i === idx ? "border-primary" : "border-transparent hover:border-foreground/30"}`}>
-                      <img src={resolveImageUrl(im.url, settings.image_base_url)} alt="" loading="lazy" className="w-full h-full object-cover"/>
+                      <img src={thumbUrl(im.url, settings.image_base_url, 160)} alt="" loading="lazy" className="w-full h-full object-cover"/>
                     </button>
                   ))}
                 </div>
@@ -212,9 +210,9 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
               className="bg-jade text-white font-bold uppercase tracking-widest py-4 text-sm hover:opacity-90 transition flex items-center justify-center gap-2">
               <MessageCircle size={18}/> Order via WhatsApp
             </button>
-            <button onClick={addToCart} title="Add to selection"
-              className="px-4 bg-ink text-background hover:bg-primary transition flex items-center justify-center">
-              <ShoppingBag size={18}/>
+            <button onClick={addToCart} title={inCart ? "Remove from cart" : "Add to cart"}
+              className={`px-5 font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-1.5 transition ${inCart ? "bg-accent text-accent-foreground" : "bg-ink text-background hover:bg-primary"}`}>
+              {inCart ? <><Check size={16}/> In cart</> : <><ShoppingBag size={16}/> Add</>}
             </button>
           </div>
         </div>

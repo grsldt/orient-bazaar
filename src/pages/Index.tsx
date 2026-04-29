@@ -5,7 +5,7 @@ import { ProductCard } from "@/components/catalog/ProductCard";
 import { ProductModal } from "@/components/catalog/ProductModal";
 import { HomePresentation } from "@/components/catalog/HomePresentation";
 import { CartDrawer } from "@/components/catalog/CartDrawer";
-import { Search, ShoppingBag, Heart, Menu } from "lucide-react";
+import { Search, ShoppingBag, Menu } from "lucide-react";
 import { useLocalList } from "@/hooks/useLocalList";
 
 const PAGE_SIZE = 48;
@@ -24,10 +24,8 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [cartOpen, setCartOpen] = useState(false);
-  const [favOnly, setFavOnly] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const cart = useLocalList("ls_cart");
-  const favorites = useLocalList("ls_favorites");
 
   useEffect(() => {
     Promise.all([fetchBrands(), fetchCategories(), fetchSettings()]).then(([b, c, s]) => {
@@ -63,21 +61,19 @@ const Index = () => {
   const brandCats = useMemo(() => brandId ? categories.filter((c) => c.brand_id === brandId) : [], [brandId, categories]);
   const currentBrand = brands.find((b) => b.id === brandId);
 
-  const filteredFav = useMemo(() => favOnly ? products.filter((p) => favorites.has(p.id)) : products, [products, favOnly, favorites]);
-
   const sorted = useMemo(() => {
-    const arr = [...filteredFav];
+    const arr = [...products];
     if (sort === "priceLow") arr.sort((a, b) => (a.price ?? 999) - (b.price ?? 999));
     else if (sort === "priceHigh") arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
     else if (sort === "az") arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sort === "za") arr.sort((a, b) => b.title.localeCompare(a.title));
     return arr;
-  }, [filteredFav, sort]);
+  }, [products, sort]);
 
   const brandLookup = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
   const catLookup = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c.name])), [categories]);
 
-  const showHome = !brandId && !debounced && !favOnly;
+  const showHome = !brandId && !debounced;
   const shown = sorted.slice(0, visible);
 
   return (
@@ -102,7 +98,7 @@ const Index = () => {
             <span className="text-[10px] uppercase tracking-[0.25em]">LÓNG SHÌ</span>
           </div>
           <button
-            onClick={() => { setBrandId(null); setSearch(""); setFavOnly(false); }}
+            onClick={() => { setBrandId(null); setSearch(""); }}
             className="text-[10px] uppercase tracking-widest px-2 py-1 hover:text-primary"
           >
             Home
@@ -120,7 +116,7 @@ const Index = () => {
               <div className="relative px-6 py-6">
                 <div className="text-[10px] uppercase tracking-[0.3em] text-accent mb-1">东方批发市场 · Eastern Wholesale</div>
                 <h1 className="text-2xl md:text-3xl font-black">
-                  {favOnly ? "Your favorites" : currentBrand ? currentBrand.name : `Search: "${debounced}"`}
+                  {currentBrand ? currentBrand.name : `Search: "${debounced}"`}
                 </h1>
                 <p className="text-xs text-muted-foreground mt-1">
                   {sorted.length} item(s) · Click any product to order via WhatsApp
@@ -152,10 +148,6 @@ const Index = () => {
                 <option value="az">A → Z</option>
                 <option value="za">Z → A</option>
               </select>
-              <button onClick={() => setFavOnly((x) => !x)} title="Show favorites only"
-                className={`px-3 py-2 ink-border text-sm flex items-center gap-1.5 ${favOnly ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}>
-                <Heart size={14} className={favOnly ? "fill-current" : ""}/> {favorites.items.length}
-              </button>
             </div>
 
             <section className="flex-1 p-3 md:p-5">
@@ -195,19 +187,18 @@ const Index = () => {
         )}
       </main>
 
-      {/* Floating cart button */}
-      {cart.items.length > 0 && (
-        <button
-          onClick={() => setCartOpen(true)}
-          className="fixed bottom-4 right-4 z-40 bg-jade text-white shadow-2xl rounded-full w-14 h-14 flex items-center justify-center hover:scale-105 transition"
-          aria-label="Open selection"
-        >
-          <ShoppingBag size={22}/>
-          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-black rounded-full min-w-5 h-5 px-1 flex items-center justify-center">
-            {cart.items.length}
-          </span>
-        </button>
-      )}
+      {/* Floating cart button — always visible so users discover the cart */}
+      <button
+        onClick={() => setCartOpen(true)}
+        className="fixed bottom-4 right-4 z-40 bg-jade text-white shadow-2xl rounded-full pl-4 pr-5 h-14 flex items-center gap-2 hover:scale-105 transition font-bold uppercase tracking-widest text-xs"
+        aria-label="Open cart"
+      >
+        <ShoppingBag size={20}/>
+        <span>Cart</span>
+        <span className="bg-primary text-primary-foreground text-[10px] font-black rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center">
+          {cart.items.length}
+        </span>
+      </button>
 
       <ProductModal
         product={open}
