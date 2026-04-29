@@ -2,22 +2,49 @@ import { Brand, SiteSettings, buildWhatsappUrl } from "@/lib/catalog";
 import { Logo } from "./Logo";
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { Search, MessageCircle, Truck, Lock } from "lucide-react";
+import { Search, MessageCircle, Truck, Lock, X } from "lucide-react";
 
 interface Props {
   brands: Brand[];
   selectedBrandId: string | null;
   onSelectBrand: (id: string | null) => void;
   settings: SiteSettings;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const Sidebar = ({ brands, selectedBrandId, onSelectBrand, settings }: Props) => {
+export const Sidebar = ({ brands, selectedBrandId, onSelectBrand, settings, mobileOpen, onCloseMobile }: Props) => {
   const [q, setQ] = useState("");
   const filtered = brands.filter((b) => b.name.toLowerCase().includes(q.toLowerCase()));
+  const handleSelect = (id: string | null) => {
+    onSelectBrand(id);
+    onCloseMobile?.();
+  };
   return (
-    <aside className="w-72 shrink-0 bg-ink text-sidebar-foreground flex flex-col h-screen sticky top-0 border-r border-sidebar-border">
-      <div className="p-5 border-b border-sidebar-border">
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-ink/70 backdrop-blur-sm md:hidden"
+          onClick={onCloseMobile}
+          aria-hidden
+        />
+      )}
+      <aside
+        className={`bg-ink text-sidebar-foreground flex flex-col border-r border-sidebar-border
+          fixed inset-y-0 left-0 z-50 w-[82vw] max-w-[320px] transform transition-transform duration-300
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+          md:static md:translate-x-0 md:w-72 md:shrink-0 md:h-screen md:sticky md:top-0`}
+      >
+      <div className="p-5 border-b border-sidebar-border flex items-center justify-between">
         <Logo size="md" />
+        <button
+          onClick={onCloseMobile}
+          className="md:hidden p-1 text-sidebar-foreground/70 hover:text-primary"
+          aria-label="Close menu"
+        >
+          <X size={20}/>
+        </button>
       </div>
 
       <div className="p-3 grid grid-cols-2 gap-2 border-b border-sidebar-border">
@@ -48,9 +75,9 @@ export const Sidebar = ({ brands, selectedBrandId, onSelectBrand, settings }: Pr
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto min-h-0">
         <button
-          onClick={() => onSelectBrand(null)}
+          onClick={() => handleSelect(null)}
           className={`w-full text-left px-4 py-2.5 text-sm font-medium border-b border-sidebar-border transition ${
             selectedBrandId === null ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"
           }`}
@@ -61,7 +88,7 @@ export const Sidebar = ({ brands, selectedBrandId, onSelectBrand, settings }: Pr
         {filtered.map((b) => (
           <button
             key={b.id}
-            onClick={() => onSelectBrand(b.id)}
+            onClick={() => handleSelect(b.id)}
             className={`w-full text-left px-4 py-2 text-sm border-b border-sidebar-border/40 transition ${
               selectedBrandId === b.id ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"
             }`}
@@ -75,6 +102,7 @@ export const Sidebar = ({ brands, selectedBrandId, onSelectBrand, settings }: Pr
         <span>© LÓNG SHÌ 龙市</span>
         <Link to="/admin" className="hover:text-primary transition flex items-center gap-1"><Lock size={10}/>Admin</Link>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 };
