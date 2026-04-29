@@ -377,6 +377,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   const [sizes, setSizes] = useState(product.sizes ?? []);
   const [colors, setColors] = useState(product.colors ?? []);
   const [busy, setBusy] = useState(false);
+  useScrollLock(true);
 
   const save = async () => {
     setBusy(true);
