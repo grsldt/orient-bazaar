@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Brand, Category, Product, SiteSettings, fetchBrands, fetchCategories, fetchProducts, fetchSettings, resolveImageUrl } from "@/lib/catalog";
+import { Brand, Category, Product, SiteSettings, fetchBrands, fetchCategories, fetchProducts, fetchSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
 import { Logo } from "@/components/catalog/Logo";
 import { toast } from "sonner";
 import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon } from "lucide-react";
@@ -216,7 +216,7 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
     const title = prompt("Product title?")?.trim();
     if (!title) return;
     const { data, error } = await supabase.from("products").insert({
-      brand_id: brandId, category_id: categoryId, title, price: 15
+      brand_id: brandId, category_id: categoryId, title, price: 15, currency: "USD"
     }).select().single();
     if (error) { toast.error(error.message); return; }
     onReload();
@@ -262,7 +262,7 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
             <div className="p-2">
               <div className="font-bold text-sm truncate">{p.title}</div>
               <div className="text-xs text-muted-foreground flex justify-between">
-                <span>{p.whatsapp_only ? "WhatsApp" : p.price ? `${p.price}€` : "—"}</span>
+                <span>{p.whatsapp_only ? "WhatsApp" : p.price ? formatPrice(p.price, p.currency) : "—"}</span>
                 <span>{p.images?.length ?? 0} 图</span>
               </div>
             </div>
