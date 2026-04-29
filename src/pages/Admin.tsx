@@ -122,6 +122,11 @@ export default function Admin() {
 
   useEffect(() => { if (isAdmin) reload(); }, [isAdmin, reload]);
 
+  // Auto-select the first brand when brands load (no "Choose a brand" empty state)
+  useEffect(() => {
+    if (brands.length > 0 && !brandId) setBrandId(brands[0].id);
+  }, [brands, brandId]);
+
   // Live unread message count
   useEffect(() => {
     if (!isAdmin) return;
