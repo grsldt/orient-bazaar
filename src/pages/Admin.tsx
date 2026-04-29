@@ -722,10 +722,10 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
           onClose={() => setShowAddColor(false)}/>
       )}
       {colorStep && (
-        <PromptModal title={`Hex for "${colorStep.name}"`} label="Hex (optional)"
-          placeholder="#000000  — leave empty to skip"
-          onSubmit={(hex) => { addColor(colorStep.name, hex || null); }}
-          onClose={() => { addColor(colorStep.name, null); setColorStep(null); }}/>
+        <Modal title={`Hex for "${colorStep.name}"`} onClose={() => setColorStep(null)}>
+          <p className="text-xs text-muted-foreground mb-3">Optional — used for the color swatch dot.</p>
+          <HexPicker onPick={(hex) => { addColor(colorStep.name, hex); setColorStep(null); }} onSkip={() => { addColor(colorStep.name, null); setColorStep(null); }}/>
+        </Modal>
       )}
       {confirmDel && (
         <ConfirmModal title="Delete product" message={`Delete "${p.title}"? This cannot be undone.`} danger
