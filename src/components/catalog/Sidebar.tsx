@@ -55,8 +55,8 @@ export const Sidebar = ({ brands, selectedBrandId, onSelectBrand, settings }: Pr
             selectedBrandId === null ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"
           }`}
         >
-          <span className="han mr-2 text-base">全</span> All Brands
-          <span className="float-right text-xs opacity-60">{brands.length}</span>
+          <span className="han mr-2 text-base">家</span> Home
+          <span className="float-right text-xs opacity-60">{brands.length} brands</span>
         </button>
         {filtered.map((b) => (
           <button

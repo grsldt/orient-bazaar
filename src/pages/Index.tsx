@@ -3,6 +3,7 @@ import { Brand, Category, Product, SiteSettings, fetchBrands, fetchCategories, f
 import { Sidebar } from "@/components/catalog/Sidebar";
 import { ProductCard } from "@/components/catalog/ProductCard";
 import { ProductModal } from "@/components/catalog/ProductModal";
+import { HomePresentation } from "@/components/catalog/HomePresentation";
 import { Search } from "lucide-react";
 
 const Index = () => {
@@ -47,6 +48,8 @@ const Index = () => {
   const brandLookup = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
   const catLookup = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c.name])), [categories]);
 
+  const showHome = !brandId && !search.trim();
+
   return (
     <div className="flex min-h-screen">
       <Sidebar
@@ -57,6 +60,10 @@ const Index = () => {
       />
 
       <main className="flex-1 flex flex-col min-w-0">
+        {showHome ? (
+          <HomePresentation brands={brands} settings={settings} onSelectBrand={(id) => setBrandId(id)} />
+        ) : (
+          <>
         {/* Decorative banner */}
         <div className="relative bg-ink text-background overflow-hidden border-b-4 border-primary">
           <div className="absolute inset-0 flex items-center justify-end pr-8 pointer-events-none opacity-10">
@@ -139,6 +146,8 @@ const Index = () => {
           <span>© LÓNG SHÌ 龙市 · Dragon Market</span>
           <span className="text-muted-foreground">All orders via WhatsApp</span>
         </footer>
+          </>
+        )}
       </main>
 
       <ProductModal
