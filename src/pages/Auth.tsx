@@ -5,7 +5,7 @@ import { Logo } from "@/components/catalog/Logo";
 import { toast } from "sonner";
 import { ArrowLeft, Lock, MessageCircle, Send } from "lucide-react";
 
-type Mode = "contact" | "signin" | "signup" | "forgot";
+type Mode = "contact" | "signin" | "forgot";
 
 export default function Auth() {
   const nav = useNavigate();
@@ -35,13 +35,6 @@ export default function Auth() {
         if (error) throw error;
         toast.success("Welcome back 欢迎");
         nav("/admin");
-      } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password: pw,
-          options: { emailRedirectTo: `${window.location.origin}/admin` },
-        });
-        if (error) throw error;
-        toast.success("Account created. Ask the owner to grant admin access.");
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
@@ -121,7 +114,7 @@ export default function Auth() {
           ) : (
             <>
               <h1 className="text-2xl font-black mb-1">
-                {mode === "signin" ? "Admin Sign In" : mode === "signup" ? "Create Account" : "Reset Password"}
+                {mode === "signin" ? "Admin Sign In" : "Reset Password"}
               </h1>
               <p className="text-xs uppercase tracking-widest text-muted-foreground mb-5">管理员入口 · Admin only</p>
 
@@ -134,19 +127,13 @@ export default function Auth() {
                 )}
                 <button type="submit" disabled={busy}
                   className="w-full bg-primary text-primary-foreground font-bold uppercase tracking-widest py-3 hover:opacity-90 disabled:opacity-50">
-                  {busy ? "..." : (mode === "signin" ? "Sign In" : mode === "signup" ? "Sign Up" : "Send Reset Link")}
+                  {busy ? "..." : (mode === "signin" ? "Sign In" : "Send Reset Link")}
                 </button>
               </form>
 
               <div className="mt-4 flex flex-col gap-2 text-xs text-center uppercase tracking-widest">
                 {mode === "signin" && (
-                  <>
-                    <button onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-primary">Forgot password?</button>
-                    <button onClick={() => setMode("signup")} className="text-muted-foreground hover:text-primary">Need an account? Sign up</button>
-                  </>
-                )}
-                {mode === "signup" && (
-                  <button onClick={() => setMode("signin")} className="text-muted-foreground hover:text-primary">Already have an account? Sign in</button>
+                  <button onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-primary">Forgot password?</button>
                 )}
                 {mode === "forgot" && (
                   <button onClick={() => setMode("signin")} className="text-muted-foreground hover:text-primary">Back to sign in</button>
