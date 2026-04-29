@@ -1,4 +1,4 @@
-import { Product, SiteSettings, resolveImageUrl } from "@/lib/catalog";
+import { Product, SiteSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
 import { useState } from "react";
 
 interface Props {
@@ -40,8 +40,12 @@ export const ProductCard = ({ product, settings, brandName, onClick }: Props) =>
         {product.whatsapp_only ? (
           <div className="absolute bottom-0 left-0 stamp">WhatsApp</div>
         ) : product.price ? (
-          <div className="absolute bottom-0 left-0 stamp">{product.price}€</div>
+          <div className="absolute bottom-0 left-0 stamp">{formatPrice(product.price, product.currency)}</div>
         ) : null}
+      </div>
+      <div className="px-2 py-1.5">
+        <div className="text-xs font-semibold truncate">{product.title}</div>
+        {brandName && <div className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{brandName}</div>}
       </div>
     </button>
   );
