@@ -138,7 +138,13 @@ export default function Admin() {
 
   useEffect(() => {
     if (!isAdmin) return;
+    // Don't fetch all products when no brand is selected — avoids loading 1000 rows
+    // and showing every brand's items in the current panel.
+    if (!brandId) { setProducts([]); return; }
+    let cancelled = false;
+    setProducts([]); // clear immediately to avoid showing stale list while fetching
     fetchProducts({ brandId, categoryId }).then(setProducts);
+    return () => { cancelled = true; };
   }, [brandId, categoryId, isAdmin]);
 
   if (!authChecked) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading...</div>;
