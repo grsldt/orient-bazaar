@@ -280,6 +280,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   const [p, setP] = useState<Product>(product);
   const [imgs, setImgs] = useState(product.images ?? []);
   const [sizes, setSizes] = useState(product.sizes ?? []);
+  const [colors, setColors] = useState(product.colors ?? []);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -350,6 +351,19 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     setSizes((cur) => cur.filter((s) => s.id !== id));
   };
 
+  const addColor = async () => {
+    const name = prompt("Color name (e.g. Black, Red)?")?.trim();
+    if (!name) return;
+    const hex = prompt("Color hex code (optional, e.g. #000000)?")?.trim() || null;
+    const { data, error } = await supabase.from("product_colors").insert({ product_id: p.id, name, hex, sort_order: colors.length }).select().single();
+    if (error) { toast.error(error.message); return; }
+    setColors((cur) => [...cur, data as any]);
+  };
+  const removeColor = async (id: string) => {
+    await supabase.from("product_colors").delete().eq("id", id);
+    setColors((cur) => cur.filter((c) => c.id !== id));
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-ink/80 backdrop-blur-sm z-40" onClick={onClose}/>
@@ -373,7 +387,10 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
               </div>
               <div>
                 <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-1">Currency</label>
-                <input value={p.currency} onChange={(e) => setP({ ...p, currency: e.target.value })} className="w-full bg-background px-3 py-2 ink-border focus:outline-none focus:border-primary"/>
+                <select value={p.currency} onChange={(e) => setP({ ...p, currency: e.target.value })} className="w-full bg-background px-3 py-2 ink-border focus:outline-none focus:border-primary">
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                </select>
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">
@@ -411,7 +428,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
             {/* Sizes */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs uppercase tracking-widest text-muted-foreground">Sizes ({sizes.length})</label>
+                <label className="text-xs uppercase tracking-widest text-muted-foreground">Sizes — leave empty if N/A ({sizes.length})</label>
                 <button onClick={addSize} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -419,6 +436,23 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
                   <div key={s.id} className="flex items-center gap-1 ink-border px-2 py-1 text-xs">
                     {s.size}
                     <button onClick={() => removeSize(s.id)} className="text-destructive hover:opacity-70"><X size={10}/></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Colors */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs uppercase tracking-widest text-muted-foreground">Colors — only those visible on photos ({colors.length})</label>
+                <button onClick={addColor} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {colors.map((c) => (
+                  <div key={c.id} className="flex items-center gap-1.5 ink-border px-2 py-1 text-xs">
+                    {c.hex && <span className="w-3 h-3 rounded-full border border-ink/20" style={{ background: c.hex }} />}
+                    {c.name}
+                    <button onClick={() => removeColor(c.id)} className="text-destructive hover:opacity-70"><X size={10}/></button>
                   </div>
                 ))}
               </div>
