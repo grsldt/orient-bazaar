@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type Brand = { id: string; name: string; slug: string; sort_order: number };
 export type Category = { id: string; brand_id: string; name: string; slug: string; sort_order: number };
 export type ProductImage = { id: string; product_id: string; url: string; sort_order: number };
+export type ProductColor = { id: string; name: string; hex: string | null };
 export type Product = {
   id: string;
   brand_id: string;
@@ -16,6 +17,7 @@ export type Product = {
   sort_order: number;
   images?: ProductImage[];
   sizes?: { id: string; size: string }[];
+  colors?: ProductColor[];
 };
 
 export type SiteSettings = {
@@ -42,7 +44,7 @@ export async function fetchCategories(): Promise<Category[]> {
 }
 
 export async function fetchProducts(filters: { brandId?: string | null; categoryId?: string | null; search?: string }): Promise<Product[]> {
-  let q = supabase.from("products").select("*, images:product_images(id, product_id, url, sort_order), sizes:product_sizes(id, size)").order("sort_order").limit(1000);
+  let q = supabase.from("products").select("*, images:product_images(id, product_id, url, sort_order), sizes:product_sizes(id, size), colors:product_colors(id, name, hex)").order("sort_order").limit(1000);
   if (filters.brandId) q = q.eq("brand_id", filters.brandId);
   if (filters.categoryId) q = q.eq("category_id", filters.categoryId);
   if (filters.search) q = q.ilike("title", `%${filters.search}%`);
@@ -71,4 +73,12 @@ export function resolveImageUrl(url: string, base: string): string {
 export function buildWhatsappUrl(phone: string, message: string): string {
   const num = phone.replace(/[^\d]/g, "");
   return `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
+}
+
+export function formatPrice(price: number | null | undefined, currency: string = "USD"): string {
+  if (price == null) return "";
+  const symbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency + " ";
+  // USD/$ before, EUR after
+  if (currency === "EUR") return `${price}€`;
+  return `${symbol}${price}`;
 }
