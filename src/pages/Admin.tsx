@@ -216,10 +216,6 @@ VALUES (
                 <span>Brands ({brands.length})</span>
                 <button onClick={() => setShowAddBrand(true)} className="text-primary hover:text-accent" aria-label="Add brand"><Plus size={14}/></button>
               </div>
-              <button
-                onClick={() => { setBrandId(null); setCategoryId(null); setNavOpen(false); }}
-                className={`w-full text-left px-3 py-1.5 text-xs border-b border-sidebar-border/40 ${brandId === null ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
-              >All</button>
               {brands.map((b) => (
                 <button key={b.id}
                   onClick={() => { setBrandId(b.id); setCategoryId(null); setNavOpen(false); }}
