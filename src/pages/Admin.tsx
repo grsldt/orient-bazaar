@@ -185,6 +185,80 @@ async function addBrand(onDone: () => void) {
   onDone();
 }
 
+// ============== Messages panel ==============
+function MessagesPanel() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false }).limit(500);
+    setItems(data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const markRead = async (id: string, read: boolean) => {
+    await supabase.from("contact_messages").update({ read }).eq("id", id);
+    setItems((cur) => cur.map((m) => m.id === id ? { ...m, read } : m));
+  };
+  const remove = async (id: string) => {
+    if (!confirm("Delete this message?")) return;
+    await supabase.from("contact_messages").delete().eq("id", id);
+    setItems((cur) => cur.filter((m) => m.id !== id));
+  };
+
+  const list = filter === "unread" ? items.filter((m) => !m.read) : items;
+
+  return (
+    <div className="max-w-4xl">
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-3xl font-black">Messages</h1>
+        <div className="flex gap-2 text-xs uppercase tracking-widest">
+          <button onClick={() => setFilter("all")} className={`px-3 py-1.5 ink-border ${filter === "all" ? "bg-primary text-primary-foreground" : "bg-card"}`}>All ({items.length})</button>
+          <button onClick={() => setFilter("unread")} className={`px-3 py-1.5 ink-border ${filter === "unread" ? "bg-primary text-primary-foreground" : "bg-card"}`}>Unread ({items.filter((m) => !m.read).length})</button>
+        </div>
+      </div>
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">客户消息 · Customer enquiries</p>
+
+      {loading ? <p className="text-muted-foreground">Loading...</p> : list.length === 0 ? (
+        <p className="text-muted-foreground">No messages.</p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((m) => (
+            <div key={m.id} className={`bg-card ink-border p-4 ${!m.read ? "border-l-4 border-l-primary" : ""}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <div className="font-bold flex items-center gap-2 flex-wrap">
+                    {m.name}
+                    {!m.read && <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 uppercase tracking-widest">New</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground break-all">
+                    <a href={`mailto:${m.email}`} className="hover:text-primary">{m.email}</a>
+                    {m.phone && <> · <a href={`tel:${m.phone}`} className="hover:text-primary">{m.phone}</a></>}
+                  </div>
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  {new Date(m.created_at).toLocaleString()}
+                </div>
+              </div>
+              {m.subject && <div className="text-sm font-semibold mb-1">{m.subject}</div>}
+              <p className="text-sm whitespace-pre-wrap text-foreground/90 mb-3">{m.message}</p>
+              <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                <a href={`mailto:${m.email}?subject=Re:%20${encodeURIComponent(m.subject || "Your enquiry")}`} className="px-3 py-1.5 bg-primary text-primary-foreground hover:opacity-90">Reply by email</a>
+                <button onClick={() => markRead(m.id, !m.read)} className="px-3 py-1.5 ink-border bg-card hover:bg-muted">Mark as {m.read ? "unread" : "read"}</button>
+                <button onClick={() => remove(m.id)} className="px-3 py-1.5 text-destructive hover:underline">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============== Settings panel ==============
 function SettingsPanel({ settings, onSaved }: { settings: SiteSettings; onSaved: () => void }) {
   const [s, setS] = useState(settings);
