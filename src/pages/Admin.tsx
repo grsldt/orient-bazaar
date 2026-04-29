@@ -9,6 +9,60 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+// =============== Lightweight inline modals (replace native prompt/confirm) ===============
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  useScrollLock(true);
+  return (
+    <>
+      <div className="fixed inset-0 z-[60] bg-ink/80 backdrop-blur-sm" onClick={onClose}/>
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-card w-full max-w-sm ink-border pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <h3 className="font-black text-base">{title}</h3>
+            <button onClick={onClose} className="hover:text-primary"><X size={18}/></button>
+          </div>
+          <div className="p-5">{children}</div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PromptModal({ title, label, placeholder, defaultValue = "", onSubmit, onClose }: { title: string; label?: string; placeholder?: string; defaultValue?: string; onSubmit: (v: string) => void; onClose: () => void; }) {
+  const [v, setV] = useState(defaultValue);
+  return (
+    <Modal title={title} onClose={onClose}>
+      {label && <label className="block text-xs uppercase tracking-widest text-muted-foreground mb-2">{label}</label>}
+      <input
+        autoFocus
+        value={v}
+        placeholder={placeholder}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && v.trim()) { onSubmit(v.trim()); onClose(); } }}
+        className="w-full bg-background px-3 py-2.5 ink-border focus:outline-none focus:border-primary text-sm"
+      />
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onClose} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Cancel</button>
+        <button disabled={!v.trim()} onClick={() => { onSubmit(v.trim()); onClose(); }}
+          className="bg-primary text-primary-foreground px-5 py-2 text-xs uppercase tracking-widest font-bold disabled:opacity-50">OK</button>
+      </div>
+    </Modal>
+  );
+}
+
+function ConfirmModal({ title, message, danger, onConfirm, onClose }: { title: string; message: string; danger?: boolean; onConfirm: () => void; onClose: () => void; }) {
+  return (
+    <Modal title={title} onClose={onClose}>
+      <p className="text-sm text-foreground/90">{message}</p>
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onClose} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Cancel</button>
+        <button onClick={() => { onConfirm(); onClose(); }}
+          className={`px-5 py-2 text-xs uppercase tracking-widest font-bold ${danger ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground"}`}>Confirm</button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function Admin() {
   const nav = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
