@@ -326,11 +326,25 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
   };
 
   const newProduct = async () => {
-    if (!brandId || !categoryId) { toast.error("Pick a brand and category first"); return; }
+    if (!brandId) { toast.error("Pick a brand from the sidebar first"); return; }
+    let catId = categoryId;
+    if (!catId) {
+      if (brandCats.length === 0) {
+        toast.error("Create a category first (button \"+ Category\")");
+        return;
+      }
+      // Ask user to pick one
+      const choice = prompt(
+        `Which category?\n\n${brandCats.map((c: Category, i: number) => `${i + 1}. ${c.name}`).join("\n")}\n\nType the number:`
+      );
+      const idx = parseInt((choice || "").trim(), 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= brandCats.length) { toast.error("Cancelled"); return; }
+      catId = brandCats[idx].id;
+    }
     const title = prompt("Product title?")?.trim();
     if (!title) return;
     const { data, error } = await supabase.from("products").insert({
-      brand_id: brandId, category_id: categoryId, title, price: 15, currency: "USD"
+      brand_id: brandId, category_id: catId, title, price: 15, currency: "USD"
     }).select().single();
     if (error) { toast.error(error.message); return; }
     onReload();
@@ -361,7 +375,7 @@ function ProductsPanel({ brands, categories, products, brandId, categoryId, onCa
               {brandCats.map((c: Category) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <button onClick={addCategory} className="text-xs uppercase tracking-widest bg-card ink-border px-3 py-2 hover:bg-primary hover:text-primary-foreground"><Plus size={12} className="inline mr-1"/>Category</button>
-            <button onClick={newProduct} disabled={!categoryId} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 disabled:opacity-50"><Plus size={12} className="inline mr-1"/>New Product</button>
+            <button onClick={newProduct} className="text-xs uppercase tracking-widest bg-primary text-primary-foreground px-4 py-2 hover:opacity-90"><Plus size={12} className="inline mr-1"/>New Product</button>
           </>
         )}
         {!brandId && <p className="text-sm text-muted-foreground">Pick a brand from the sidebar to add or edit products.</p>}
