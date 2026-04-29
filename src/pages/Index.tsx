@@ -5,7 +5,7 @@ import { ProductCard } from "@/components/catalog/ProductCard";
 import { ProductModal } from "@/components/catalog/ProductModal";
 import { HomePresentation } from "@/components/catalog/HomePresentation";
 import { CartDrawer } from "@/components/catalog/CartDrawer";
-import { Search, ShoppingBag, Heart } from "lucide-react";
+import { Search, ShoppingBag, Heart, Menu } from "lucide-react";
 import { useLocalList } from "@/hooks/useLocalList";
 
 const PAGE_SIZE = 48;
@@ -25,6 +25,7 @@ const Index = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [cartOpen, setCartOpen] = useState(false);
   const [favOnly, setFavOnly] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const cart = useLocalList("ls_cart");
   const favorites = useLocalList("ls_favorites");
 
@@ -86,9 +87,28 @@ const Index = () => {
         selectedBrandId={brandId}
         onSelectBrand={setBrandId}
         settings={settings}
+        mobileOpen={navOpen}
+        onCloseMobile={() => setNavOpen(false)}
       />
 
       <main className="flex-1 flex flex-col min-w-0">
+        {/* Mobile topbar */}
+        <div className="md:hidden sticky top-0 z-30 bg-ink text-background flex items-center justify-between px-3 py-2 border-b-2 border-primary">
+          <button onClick={() => setNavOpen(true)} aria-label="Open menu" className="p-2 -ml-2">
+            <Menu size={22}/>
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="han text-primary text-xl leading-none">龙市</span>
+            <span className="text-[10px] uppercase tracking-[0.25em]">LÓNG SHÌ</span>
+          </div>
+          <button
+            onClick={() => { setBrandId(null); setSearch(""); setFavOnly(false); }}
+            className="text-[10px] uppercase tracking-widest px-2 py-1 hover:text-primary"
+          >
+            Home
+          </button>
+        </div>
+
         {showHome ? (
           <HomePresentation brands={brands} settings={settings} onSelectBrand={(id) => setBrandId(id)} />
         ) : (
