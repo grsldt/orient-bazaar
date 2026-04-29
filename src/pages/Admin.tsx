@@ -522,6 +522,11 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   const [sizes, setSizes] = useState(product.sizes ?? []);
   const [colors, setColors] = useState(product.colors ?? []);
   const [busy, setBusy] = useState(false);
+  const [showAddUrl, setShowAddUrl] = useState(false);
+  const [showAddSize, setShowAddSize] = useState(false);
+  const [colorStep, setColorStep] = useState<{ name: string } | null>(null);
+  const [showAddColor, setShowAddColor] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   useScrollLock(true);
 
   const save = async () => {
@@ -537,7 +542,6 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   };
 
   const del = async () => {
-    if (!confirm(`Delete "${p.title}"?`)) return;
     await supabase.from("products").delete().eq("id", p.id);
     toast.success("Deleted");
     onClose();
@@ -557,9 +561,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     setBusy(false);
   };
 
-  const addUrlImage = async () => {
-    const url = prompt("Image URL or relative path (e.g. brand/category/file.jpg)?")?.trim();
-    if (!url) return;
+  const addUrlImage = async (url: string) => {
     const next = imgs.length;
     const { data, error } = await supabase.from("product_images").insert({ product_id: p.id, url, sort_order: next }).select().single();
     if (error) { toast.error(error.message); return; }
@@ -580,9 +582,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     await Promise.all(next.map((im, idx) => supabase.from("product_images").update({ sort_order: idx }).eq("id", im.id)));
   };
 
-  const addSize = async () => {
-    const s = prompt("Size (e.g. M, 42, XL)?")?.trim();
-    if (!s) return;
+  const addSize = async (s: string) => {
     const { data, error } = await supabase.from("product_sizes").insert({ product_id: p.id, size: s, sort_order: sizes.length }).select().single();
     if (error) { toast.error(error.message); return; }
     setSizes((cur) => [...cur, data as any]);
@@ -592,10 +592,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
     setSizes((cur) => cur.filter((s) => s.id !== id));
   };
 
-  const addColor = async () => {
-    const name = prompt("Color name (e.g. Black, Red)?")?.trim();
-    if (!name) return;
-    const hex = prompt("Color hex code (optional, e.g. #000000)?")?.trim() || null;
+  const addColor = async (name: string, hex: string | null) => {
     const { data, error } = await supabase.from("product_colors").insert({ product_id: p.id, name, hex, sort_order: colors.length }).select().single();
     if (error) { toast.error(error.message); return; }
     setColors((cur) => [...cur, data as any]);
@@ -644,7 +641,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs uppercase tracking-widest text-muted-foreground">Photos ({imgs.length})</label>
                 <div className="flex gap-2">
-                  <button onClick={addUrlImage} className="text-[10px] uppercase tracking-widest bg-card ink-border px-2 py-1 hover:bg-primary hover:text-primary-foreground">Add URL</button>
+                  <button onClick={() => setShowAddUrl(true)} className="text-[10px] uppercase tracking-widest bg-card ink-border px-2 py-1 hover:bg-primary hover:text-primary-foreground">Add URL</button>
                   <label className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1 cursor-pointer flex items-center gap-1"><Upload size={10}/> Upload
                     <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => upload(e.target.files)}/>
                   </label>
@@ -670,7 +667,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs uppercase tracking-widest text-muted-foreground">Sizes — leave empty if N/A ({sizes.length})</label>
-                <button onClick={addSize} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
+                <button onClick={() => setShowAddSize(true)} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {sizes.map((s) => (
@@ -686,7 +683,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-xs uppercase tracking-widest text-muted-foreground">Colors — only those visible on photos ({colors.length})</label>
-                <button onClick={addColor} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
+                <button onClick={() => setShowAddColor(true)} className="text-[10px] uppercase tracking-widest bg-primary text-primary-foreground px-2 py-1">+ Add</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {colors.map((c) => (
@@ -701,7 +698,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
           </div>
 
           <div className="flex items-center justify-between p-4 border-t border-border bg-muted">
-            <button onClick={del} className="text-destructive text-xs uppercase tracking-widest hover:underline flex items-center gap-1"><Trash2 size={12}/> Delete product</button>
+            <button onClick={() => setConfirmDel(true)} className="text-destructive text-xs uppercase tracking-widest hover:underline flex items-center gap-1"><Trash2 size={12}/> Delete product</button>
             <div className="flex gap-2">
               <button onClick={onClose} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Cancel</button>
               <button onClick={save} disabled={busy} className="bg-primary text-primary-foreground px-6 py-2 text-xs uppercase tracking-widest font-bold disabled:opacity-50">{busy ? "..." : "Save"}</button>
@@ -709,6 +706,31 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
           </div>
         </div>
       </div>
+
+      {showAddUrl && (
+        <PromptModal title="Add image by URL" label="URL or relative path"
+          placeholder="https://… or brand/category/file.jpg"
+          onSubmit={addUrlImage} onClose={() => setShowAddUrl(false)}/>
+      )}
+      {showAddSize && (
+        <PromptModal title="Add size" label="Size value" placeholder="e.g. M, 42, XL"
+          onSubmit={addSize} onClose={() => setShowAddSize(false)}/>
+      )}
+      {showAddColor && (
+        <PromptModal title="Add color" label="Color name" placeholder="e.g. Black"
+          onSubmit={(name) => { setColorStep({ name }); }}
+          onClose={() => setShowAddColor(false)}/>
+      )}
+      {colorStep && (
+        <PromptModal title={`Hex for "${colorStep.name}"`} label="Hex (optional)"
+          placeholder="#000000  — leave empty to skip"
+          onSubmit={(hex) => { addColor(colorStep.name, hex || null); }}
+          onClose={() => { addColor(colorStep.name, null); setColorStep(null); }}/>
+      )}
+      {confirmDel && (
+        <ConfirmModal title="Delete product" message={`Delete "${p.title}"? This cannot be undone.`} danger
+          onConfirm={del} onClose={() => setConfirmDel(false)}/>
+      )}
     </>
   );
 }
