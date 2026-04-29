@@ -143,7 +143,7 @@ export default function Admin() {
     if (!brandId) { setProducts([]); return; }
     let cancelled = false;
     setProducts([]); // clear immediately to avoid showing stale list while fetching
-    fetchProducts({ brandId, categoryId }).then(setProducts);
+    fetchProducts({ brandId, categoryId }).then((p) => { if (!cancelled) setProducts(p); });
     return () => { cancelled = true; };
   }, [brandId, categoryId, isAdmin]);
 
