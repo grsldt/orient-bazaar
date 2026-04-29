@@ -1,5 +1,7 @@
 import { Product, SiteSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
 import { useState } from "react";
+import { Heart } from "lucide-react";
+import { useLocalList } from "@/hooks/useLocalList";
 
 interface Props {
   product: Product;
@@ -11,42 +13,64 @@ interface Props {
 export const ProductCard = ({ product, settings, brandName, onClick }: Props) => {
   const [imgIdx, setImgIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const favorites = useLocalList("ls_favorites");
   const imgs = product.images ?? [];
   const main = imgs[imgIdx] ?? imgs[0];
+  const isFav = favorites.has(product.id);
+  // "New" if created in last 14 days
+  const isNew = (product as any).created_at
+    ? (Date.now() - new Date((product as any).created_at).getTime()) < 14 * 86400000
+    : false;
 
   return (
-    <button
-      onClick={onClick}
-      className="group relative bg-card text-left overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary"
+    <div
+      className="group relative bg-card text-left overflow-hidden focus-within:ring-2 focus-within:ring-primary"
       onMouseEnter={() => imgs.length > 1 && setImgIdx(1)}
       onMouseLeave={() => setImgIdx(0)}
     >
-      <div className="aspect-square bg-muted relative overflow-hidden">
-        {main && (
-          <img
-            src={resolveImageUrl(main.url, settings.image_base_url)}
-            alt={product.title}
-            loading="lazy"
-            onLoad={() => setLoaded(true)}
-            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
-          />
-        )}
-        {!loaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
-        {imgs.length > 1 && (
-          <div className="absolute top-1.5 right-1.5 bg-ink/80 text-background text-[10px] font-bold px-1.5 py-0.5">
-            {imgs.length} 图
-          </div>
-        )}
-        {product.whatsapp_only ? (
-          <div className="absolute bottom-0 left-0 stamp">WhatsApp</div>
-        ) : product.price ? (
-          <div className="absolute bottom-0 left-0 stamp">{formatPrice(product.price, product.currency)}</div>
-        ) : null}
-      </div>
-      <div className="px-2 py-1.5">
-        <div className="text-xs font-semibold truncate">{product.title}</div>
-        {brandName && <div className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{brandName}</div>}
-      </div>
-    </button>
+      <button
+        onClick={onClick}
+        className="block w-full text-left focus:outline-none"
+        aria-label={product.title}
+      >
+        <div className="aspect-square bg-muted relative overflow-hidden">
+          {main && (
+            <img
+              src={resolveImageUrl(main.url, settings.image_base_url)}
+              alt={product.title}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setLoaded(true)}
+              className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${loaded ? "opacity-100" : "opacity-0"}`}
+            />
+          )}
+          {!loaded && <div className="absolute inset-0 bg-muted animate-pulse"/>}
+          {imgs.length > 1 && (
+            <div className="absolute top-1.5 right-1.5 bg-ink/80 text-background text-[10px] font-bold px-1.5 py-0.5">
+              {imgs.length} 图
+            </div>
+          )}
+          {isNew && (
+            <div className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 uppercase tracking-widest">New</div>
+          )}
+          {product.whatsapp_only ? (
+            <div className="absolute bottom-0 left-0 stamp">WhatsApp</div>
+          ) : product.price ? (
+            <div className="absolute bottom-0 left-0 stamp">{formatPrice(product.price, product.currency)}</div>
+          ) : null}
+        </div>
+        <div className="px-2 py-1.5">
+          <div className="text-xs font-semibold truncate">{product.title}</div>
+          {brandName && <div className="text-[10px] text-muted-foreground uppercase tracking-wider truncate">{brandName}</div>}
+        </div>
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); favorites.toggle(product.id); }}
+        className="absolute bottom-2 right-2 w-8 h-8 bg-card/90 backdrop-blur ink-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+        aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+      >
+        <Heart size={14} className={isFav ? "fill-primary text-primary" : ""}/>
+      </button>
+    </div>
   );
 };

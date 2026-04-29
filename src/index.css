@@ -103,3 +103,11 @@
   }
   .ink-border { border: 1px solid hsl(var(--ink)); }
 }
+
+@layer utilities {
+  /* Lock body scroll while a modal is open */
+  .scroll-lock { overflow: hidden !important; touch-action: none; }
+  /* Hide scrollbars cleanly inside scrollable modal panes */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}

@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Brand, Category, Product, SiteSettings, fetchBrands, fetchCategories, fetchProducts, fetchSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
 import { Logo } from "@/components/catalog/Logo";
 import { toast } from "sonner";
-import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon } from "lucide-react";
+import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon, Mail } from "lucide-react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -21,7 +22,8 @@ export default function Admin() {
 
   const [brandId, setBrandId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [view, setView] = useState<"products" | "settings">("products");
+  const [view, setView] = useState<"products" | "messages" | "settings">("products");
+  const [unread, setUnread] = useState(0);
 
   // Auth gate
   useEffect(() => {
@@ -47,6 +49,15 @@ export default function Admin() {
   }, []);
 
   useEffect(() => { if (isAdmin) reload(); }, [isAdmin, reload]);
+
+  // Live unread message count
+  useEffect(() => {
+    if (!isAdmin) return;
+    const load = () => supabase.from("contact_messages").select("id", { count: "exact", head: true }).eq("read", false).then(({ count }) => setUnread(count ?? 0));
+    load();
+    const ch = supabase.channel("msgs").on("postgres_changes", { event: "*", schema: "public", table: "contact_messages" }, load).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -85,10 +96,11 @@ VALUES (
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-72 bg-ink text-sidebar-foreground flex flex-col h-screen sticky top-0">
+      <aside className="w-64 md:w-72 shrink-0 bg-ink text-sidebar-foreground flex flex-col h-screen sticky top-0 overflow-hidden">
         <div className="p-5 border-b border-sidebar-border"><Logo size="md"/></div>
-        <div className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-sidebar-border">
-          Admin · {userEmail}
+        <div className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-sidebar-border min-w-0">
+          <div className="opacity-70">Admin</div>
+          <div className="truncate normal-case tracking-normal text-sidebar-foreground" title={userEmail}>{userEmail}</div>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
@@ -96,6 +108,13 @@ VALUES (
             onClick={() => setView("products")}
             className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "products" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
           >Products</button>
+          <button
+            onClick={() => setView("messages")}
+            className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border flex items-center justify-between ${view === "messages" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+          >
+            <span><Mail size={12} className="inline mr-1.5"/>Messages</span>
+            {unread > 0 && <span className="bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-full">{unread}</span>}
+          </button>
           <button
             onClick={() => setView("settings")}
             className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
@@ -136,6 +155,8 @@ VALUES (
       <main className="flex-1 p-6 overflow-x-hidden">
         {view === "settings" && settings ? (
           <SettingsPanel settings={settings} onSaved={reload}/>
+        ) : view === "messages" ? (
+          <MessagesPanel/>
         ) : (
           <ProductsPanel
             brands={brands}
@@ -162,6 +183,80 @@ async function addBrand(onDone: () => void) {
   if (error) { toast.error(error.message); return; }
   toast.success("Brand added");
   onDone();
+}
+
+// ============== Messages panel ==============
+function MessagesPanel() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false }).limit(500);
+    setItems(data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const markRead = async (id: string, read: boolean) => {
+    await supabase.from("contact_messages").update({ read }).eq("id", id);
+    setItems((cur) => cur.map((m) => m.id === id ? { ...m, read } : m));
+  };
+  const remove = async (id: string) => {
+    if (!confirm("Delete this message?")) return;
+    await supabase.from("contact_messages").delete().eq("id", id);
+    setItems((cur) => cur.filter((m) => m.id !== id));
+  };
+
+  const list = filter === "unread" ? items.filter((m) => !m.read) : items;
+
+  return (
+    <div className="max-w-4xl">
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-3xl font-black">Messages</h1>
+        <div className="flex gap-2 text-xs uppercase tracking-widest">
+          <button onClick={() => setFilter("all")} className={`px-3 py-1.5 ink-border ${filter === "all" ? "bg-primary text-primary-foreground" : "bg-card"}`}>All ({items.length})</button>
+          <button onClick={() => setFilter("unread")} className={`px-3 py-1.5 ink-border ${filter === "unread" ? "bg-primary text-primary-foreground" : "bg-card"}`}>Unread ({items.filter((m) => !m.read).length})</button>
+        </div>
+      </div>
+      <p className="text-xs uppercase tracking-widest text-muted-foreground mb-6">客户消息 · Customer enquiries</p>
+
+      {loading ? <p className="text-muted-foreground">Loading...</p> : list.length === 0 ? (
+        <p className="text-muted-foreground">No messages.</p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((m) => (
+            <div key={m.id} className={`bg-card ink-border p-4 ${!m.read ? "border-l-4 border-l-primary" : ""}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <div className="font-bold flex items-center gap-2 flex-wrap">
+                    {m.name}
+                    {!m.read && <span className="text-[9px] bg-primary text-primary-foreground px-1.5 py-0.5 uppercase tracking-widest">New</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground break-all">
+                    <a href={`mailto:${m.email}`} className="hover:text-primary">{m.email}</a>
+                    {m.phone && <> · <a href={`tel:${m.phone}`} className="hover:text-primary">{m.phone}</a></>}
+                  </div>
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  {new Date(m.created_at).toLocaleString()}
+                </div>
+              </div>
+              {m.subject && <div className="text-sm font-semibold mb-1">{m.subject}</div>}
+              <p className="text-sm whitespace-pre-wrap text-foreground/90 mb-3">{m.message}</p>
+              <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-widest">
+                <a href={`mailto:${m.email}?subject=Re:%20${encodeURIComponent(m.subject || "Your enquiry")}`} className="px-3 py-1.5 bg-primary text-primary-foreground hover:opacity-90">Reply by email</a>
+                <button onClick={() => markRead(m.id, !m.read)} className="px-3 py-1.5 ink-border bg-card hover:bg-muted">Mark as {m.read ? "unread" : "read"}</button>
+                <button onClick={() => remove(m.id)} className="px-3 py-1.5 text-destructive hover:underline">Delete</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ============== Settings panel ==============
@@ -282,6 +377,7 @@ function ProductEditor({ product, settings, onClose }: { product: Product; setti
   const [sizes, setSizes] = useState(product.sizes ?? []);
   const [colors, setColors] = useState(product.colors ?? []);
   const [busy, setBusy] = useState(false);
+  useScrollLock(true);
 
   const save = async () => {
     setBusy(true);
