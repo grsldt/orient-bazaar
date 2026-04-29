@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Brand, Category, Product, SiteSettings, fetchBrands, fetchCategories, fetchProducts, fetchSettings, resolveImageUrl, formatPrice } from "@/lib/catalog";
 import { Logo } from "@/components/catalog/Logo";
 import { toast } from "sonner";
-import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon } from "lucide-react";
+import { Plus, Trash2, LogOut, Upload, X, ChevronUp, ChevronDown, Settings as SettingsIcon, Mail } from "lucide-react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -21,7 +22,8 @@ export default function Admin() {
 
   const [brandId, setBrandId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [view, setView] = useState<"products" | "settings">("products");
+  const [view, setView] = useState<"products" | "messages" | "settings">("products");
+  const [unread, setUnread] = useState(0);
 
   // Auth gate
   useEffect(() => {
@@ -47,6 +49,15 @@ export default function Admin() {
   }, []);
 
   useEffect(() => { if (isAdmin) reload(); }, [isAdmin, reload]);
+
+  // Live unread message count
+  useEffect(() => {
+    if (!isAdmin) return;
+    const load = () => supabase.from("contact_messages").select("id", { count: "exact", head: true }).eq("read", false).then(({ count }) => setUnread(count ?? 0));
+    load();
+    const ch = supabase.channel("msgs").on("postgres_changes", { event: "*", schema: "public", table: "contact_messages" }, load).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -85,10 +96,11 @@ VALUES (
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-72 bg-ink text-sidebar-foreground flex flex-col h-screen sticky top-0">
+      <aside className="w-64 md:w-72 shrink-0 bg-ink text-sidebar-foreground flex flex-col h-screen sticky top-0 overflow-hidden">
         <div className="p-5 border-b border-sidebar-border"><Logo size="md"/></div>
-        <div className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-sidebar-border">
-          Admin · {userEmail}
+        <div className="p-3 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-sidebar-border min-w-0">
+          <div className="opacity-70">Admin</div>
+          <div className="truncate normal-case tracking-normal text-sidebar-foreground" title={userEmail}>{userEmail}</div>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
@@ -96,6 +108,13 @@ VALUES (
             onClick={() => setView("products")}
             className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "products" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
           >Products</button>
+          <button
+            onClick={() => setView("messages")}
+            className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border flex items-center justify-between ${view === "messages" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
+          >
+            <span><Mail size={12} className="inline mr-1.5"/>Messages</span>
+            {unread > 0 && <span className="bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.5 rounded-full">{unread}</span>}
+          </button>
           <button
             onClick={() => setView("settings")}
             className={`w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-widest border-b border-sidebar-border ${view === "settings" ? "bg-primary text-primary-foreground" : "hover:bg-sidebar-accent"}`}
@@ -136,6 +155,8 @@ VALUES (
       <main className="flex-1 p-6 overflow-x-hidden">
         {view === "settings" && settings ? (
           <SettingsPanel settings={settings} onSaved={reload}/>
+        ) : view === "messages" ? (
+          <MessagesPanel/>
         ) : (
           <ProductsPanel
             brands={brands}
