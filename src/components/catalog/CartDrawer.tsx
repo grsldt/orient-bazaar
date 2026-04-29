@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Product, SiteSettings, buildWhatsappUrl, formatPrice, resolveImageUrl } from "@/lib/catalog";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Trash2, MessageCircle, ShoppingBag } from "lucide-react";
+import { X, Trash2, MessageCircle, ShoppingBag, Minus, Plus } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { useLocalList } from "@/hooks/useLocalList";
+import { useCart } from "@/hooks/useCart";
 
 interface Props {
   open: boolean;
@@ -13,26 +13,44 @@ interface Props {
 }
 
 export const CartDrawer = ({ open, onClose, settings, brandLookup }: Props) => {
-  const cart = useLocalList("ls_cart");
-  const [items, setItems] = useState<Product[]>([]);
+  const cart = useCart();
+  const [products, setProducts] = useState<Record<string, Product>>({});
   useScrollLock(open);
 
+  const ids = useMemo(() => Array.from(new Set(cart.items.map((i) => i.id))), [cart.items]);
+
   useEffect(() => {
-    if (!open || cart.items.length === 0) { setItems([]); return; }
+    if (!open || ids.length === 0) { setProducts({}); return; }
     supabase
       .from("products")
       .select("*, images:product_images(id, product_id, url, sort_order)")
-      .in("id", cart.items)
-      .then(({ data }) => setItems((data ?? []) as any));
-  }, [open, cart.items]);
+      .in("id", ids)
+      .then(({ data }) => {
+        const map: Record<string, Product> = {};
+        (data ?? []).forEach((p: any) => { map[p.id] = p; });
+        setProducts(map);
+      });
+  }, [open, ids.join(",")]);
 
-  const total = items.reduce((s, p) => s + (p.price ?? 0), 0);
+  const total = cart.items.reduce((s, line) => {
+    const p = products[line.id];
+    return s + ((p?.price ?? 0) * line.qty);
+  }, 0);
 
   const orderAll = () => {
-    if (items.length === 0) return;
-    const lines = ["Hi LÓNG SHÌ 龙市,", "", `I'd like to order ${items.length} item(s):`];
-    items.forEach((p, i) => {
-      lines.push(`${i + 1}. ${brandLookup[p.brand_id] ?? ""} — ${p.title}${p.price ? ` (${formatPrice(p.price, p.currency)})` : ""}`);
+    if (cart.items.length === 0) return;
+    const lines = ["Hi LÓNG SHÌ 龙市,", "", `I'd like to order ${cart.totalQty} item(s):`];
+    cart.items.forEach((line, i) => {
+      const p = products[line.id];
+      const brand = p ? brandLookup[p.brand_id] ?? "" : "";
+      const title = p?.title ?? line.id;
+      const variantBits: string[] = [];
+      if (line.color) variantBits.push(`Color: ${line.color}`);
+      if (line.size) variantBits.push(`Size: ${line.size}`);
+      variantBits.push(`Qty: ${line.qty}`);
+      const priceStr = p?.price ? ` — ${formatPrice(p.price, p.currency)}` : "";
+      lines.push(`${i + 1}. ${brand ? brand + " — " : ""}${title}${priceStr}`);
+      lines.push(`   ${variantBits.join(" · ")}`);
     });
     if (total > 0) lines.push("", `Estimated total: ${formatPrice(total, "USD")}`);
     lines.push("", "Thanks!");
@@ -46,40 +64,53 @@ export const CartDrawer = ({ open, onClose, settings, brandLookup }: Props) => {
       <aside className="relative w-full max-w-md bg-card text-foreground h-full flex flex-col shadow-2xl ink-border" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
-            <h2 className="font-black text-xl flex items-center gap-2"><ShoppingBag size={18}/> Selection</h2>
-            <p className="text-xs text-muted-foreground">{items.length} item(s)</p>
+            <h2 className="font-black text-xl flex items-center gap-2"><ShoppingBag size={18}/> Cart</h2>
+            <p className="text-xs text-muted-foreground">{cart.totalQty} item(s)</p>
           </div>
           <div className="flex gap-2 items-center">
-            {items.length > 0 && <button onClick={cart.clear} className="text-xs uppercase tracking-widest text-destructive hover:underline">Clear</button>}
+            {cart.items.length > 0 && <button onClick={cart.clear} className="text-xs uppercase tracking-widest text-destructive hover:underline">Clear</button>}
             <button onClick={onClose}><X size={20}/></button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {items.length === 0 ? (
+          {cart.items.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               <ShoppingBag size={32} className="mx-auto mb-3 opacity-40"/>
-              No items yet. Tap the bag icon on any product to add it here.
+              No items yet. Open a product, choose a size, then add it here.
             </div>
-          ) : items.map((p) => {
-            const main = (p.images ?? [])[0];
+          ) : cart.items.map((line, idx) => {
+            const p = products[line.id];
+            const main = p?.images?.[0];
             return (
-              <div key={p.id} className="flex gap-3 ink-border bg-background p-2">
+              <div key={`${line.id}-${line.size ?? ""}-${line.color ?? ""}-${idx}`} className="flex gap-3 ink-border bg-background p-2">
                 <div className="w-16 h-16 bg-muted shrink-0">
                   {main && <img src={resolveImageUrl(main.url, settings.image_base_url)} alt="" className="w-full h-full object-cover"/>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] uppercase text-muted-foreground tracking-widest truncate">{brandLookup[p.brand_id]}</div>
-                  <div className="text-sm font-bold truncate">{p.title}</div>
-                  {p.price && <div className="text-sm font-black">{formatPrice(p.price, p.currency)}</div>}
+                  <div className="text-[10px] uppercase text-muted-foreground tracking-widest truncate">{p ? brandLookup[p.brand_id] : ""}</div>
+                  <div className="text-sm font-bold truncate">{p?.title ?? "…"}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {line.color && <>Color: <span className="text-foreground font-semibold">{line.color}</span> · </>}
+                    {line.size && <>Size: <span className="text-foreground font-semibold">{line.size}</span></>}
+                    {!line.size && !line.color && <span className="italic">No variant</span>}
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <div className="flex items-center ink-border">
+                      <button onClick={() => cart.setQty(idx, line.qty - 1)} className="w-7 h-7 flex items-center justify-center hover:bg-muted" aria-label="Decrease"><Minus size={12}/></button>
+                      <span className="w-7 text-center text-xs font-bold">{line.qty}</span>
+                      <button onClick={() => cart.setQty(idx, line.qty + 1)} className="w-7 h-7 flex items-center justify-center hover:bg-muted" aria-label="Increase"><Plus size={12}/></button>
+                    </div>
+                    {p?.price && <div className="text-sm font-black">{formatPrice(p.price * line.qty, p.currency)}</div>}
+                  </div>
                 </div>
-                <button onClick={() => cart.remove(p.id)} className="text-destructive p-1 self-start"><Trash2 size={14}/></button>
+                <button onClick={() => cart.removeAt(idx)} className="text-destructive p-1 self-start" aria-label="Remove"><Trash2 size={14}/></button>
               </div>
             );
           })}
         </div>
 
-        {items.length > 0 && (
+        {cart.items.length > 0 && (
           <div className="border-t border-border p-3 space-y-2">
             {total > 0 && (
               <div className="flex justify-between text-sm">

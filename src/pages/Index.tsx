@@ -6,7 +6,7 @@ import { ProductModal } from "@/components/catalog/ProductModal";
 import { HomePresentation } from "@/components/catalog/HomePresentation";
 import { CartDrawer } from "@/components/catalog/CartDrawer";
 import { Search, ShoppingBag, Menu } from "lucide-react";
-import { useLocalList } from "@/hooks/useLocalList";
+import { useCart } from "@/hooks/useCart";
 
 const PAGE_SIZE = 48;
 
@@ -25,7 +25,7 @@ const Index = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [cartOpen, setCartOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
-  const cart = useLocalList("ls_cart");
+  const cart = useCart();
 
   useEffect(() => {
     Promise.all([fetchBrands(), fetchCategories(), fetchSettings()]).then(([b, c, s]) => {
@@ -196,7 +196,7 @@ const Index = () => {
         <ShoppingBag size={20}/>
         <span>Cart</span>
         <span className="bg-primary text-primary-foreground text-[10px] font-black rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center">
-          {cart.items.length}
+          {cart.totalQty}
         </span>
       </button>
 
