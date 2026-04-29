@@ -1,7 +1,7 @@
 import { Product, SiteSettings, thumbUrl, formatPrice } from "@/lib/catalog";
 import { useState } from "react";
 import { ShoppingBag, Check } from "lucide-react";
-import { useLocalList } from "@/hooks/useLocalList";
+import { useCart } from "@/hooks/useCart";
 
 interface Props {
   product: Product;
@@ -13,10 +13,10 @@ interface Props {
 export const ProductCard = ({ product, settings, brandName, onClick }: Props) => {
   const [imgIdx, setImgIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const cart = useLocalList("ls_cart");
+  const cart = useCart();
   const imgs = product.images ?? [];
   const main = imgs[imgIdx] ?? imgs[0];
-  const inCart = cart.has(product.id);
+  const inCart = cart.hasProduct(product.id);
 
   return (
     <div
@@ -62,17 +62,17 @@ export const ProductCard = ({ product, settings, brandName, onClick }: Props) =>
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (inCart) cart.remove(product.id);
-          else cart.add(product.id);
+          // Always open modal so the user picks a size / color before adding
+          onClick();
         }}
         className={`absolute bottom-1 right-1 px-2.5 h-9 ink-border flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-widest transition shadow-md ${
           inCart
             ? "bg-jade text-white"
             : "bg-card text-foreground hover:bg-primary hover:text-primary-foreground"
         }`}
-        aria-label={inCart ? "Remove from cart" : "Add to cart"}
+        aria-label={inCart ? "View in cart" : "Choose options"}
       >
-        {inCart ? <><Check size={13}/> Added</> : <><ShoppingBag size={13}/> Add</>}
+        {inCart ? <><Check size={13}/> Added</> : <><ShoppingBag size={13}/> Choose</>}
       </button>
     </div>
   );
