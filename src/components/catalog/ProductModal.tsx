@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, ChevronLeft, ChevronRight, MessageCircle, Share2, ShoppingBag, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useScrollLock } from "@/hooks/useScrollLock";
-import { useLocalList } from "@/hooks/useLocalList";
+import { useCart } from "@/hooks/useCart";
 
 interface Props {
   product: Product | null;
@@ -19,7 +19,7 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
   const [color, setColor] = useState<string>("");
   const touchStart = useRef<number | null>(null);
 
-  const cart = useLocalList("ls_cart");
+  const cart = useCart();
 
   useScrollLock(!!product);
   useEffect(() => { setIdx(0); setSize(""); setColor(""); }, [product?.id]);
@@ -80,10 +80,12 @@ export const ProductModal = ({ product, brandName, categoryName, settings, onClo
   };
 
   const addToCart = () => {
-    if (cart.has(product.id)) { cart.remove(product.id); toast("Removed from cart"); }
-    else { cart.add(product.id); toast.success("Added to cart"); }
+    if (sizes.length > 0 && !size) { toast.error("Please choose a size first"); return; }
+    if (colors.length > 0 && !color) { toast.error("Please choose a color first"); return; }
+    cart.add({ id: product.id, size: size || undefined, color: color || undefined });
+    toast.success("Added to cart");
   };
-  const inCart = cart.has(product.id);
+  const inCart = cart.hasProduct(product.id);
 
   return (
     <div
