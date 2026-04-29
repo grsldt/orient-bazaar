@@ -63,6 +63,22 @@ function ConfirmModal({ title, message, danger, onConfirm, onClose }: { title: s
   );
 }
 
+function HexPicker({ onPick, onSkip }: { onPick: (hex: string) => void; onSkip: () => void }) {
+  const [hex, setHex] = useState("#000000");
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <input type="color" value={hex} onChange={(e) => setHex(e.target.value)} className="w-14 h-10 ink-border bg-background"/>
+        <input value={hex} onChange={(e) => setHex(e.target.value)} className="flex-1 bg-background px-3 py-2 ink-border focus:outline-none focus:border-primary text-sm font-mono"/>
+      </div>
+      <div className="flex justify-end gap-2 mt-5">
+        <button onClick={onSkip} className="px-4 py-2 ink-border text-xs uppercase tracking-widest">Skip</button>
+        <button onClick={() => onPick(hex)} className="bg-primary text-primary-foreground px-5 py-2 text-xs uppercase tracking-widest font-bold">Save color</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const nav = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
