@@ -88,13 +88,17 @@ export function thumbUrl(url: string, base: string, width = 480): string {
 
 /**
  * Default size set inferred from the product's category name.
- * Returns shoe sizes for footwear-like categories, otherwise clothing sizes.
+ * - Footwear → EU shoe sizes
+ * - Clothing → XS..XXL
+ * - Anything else (electronics, accessories, bags, watches, perfume, jewelry…) → no sizes
  */
 export function defaultSizesFor(categoryName?: string | null): string[] {
   const n = (categoryName || "").toLowerCase();
   const isShoe = /(shoe|sneaker|boot|chaussure|trainer|runner|footwear|sandal)/.test(n);
   if (isShoe) return ["39", "40", "41", "42", "43", "44", "45", "46"];
-  return ["XS", "S", "M", "L", "XL", "XXL"];
+  const isClothing = /(cloth|apparel|shirt|t-?shirt|tee|hood|sweat|jacket|coat|pant|trouser|jean|short|dress|skirt|polo|tracksuit|jersey|vetement|vêtement|haut|bas|pull|chemise|veste|manteau|robe|jupe|legging|sport ?wear|underwear|sock|chaussette)/.test(n);
+  if (isClothing) return ["XS", "S", "M", "L", "XL", "XXL"];
+  return [];
 }
 
 export function buildWhatsappUrl(phone: string, message: string): string {
