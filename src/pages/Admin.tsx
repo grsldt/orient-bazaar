@@ -79,6 +79,7 @@ export default function Admin() {
   const [view, setView] = useState<"products" | "messages" | "settings">("products");
   const [unread, setUnread] = useState(0);
   const [navOpen, setNavOpen] = useState(false);
+  const [showAddBrand, setShowAddBrand] = useState(false);
 
   // Auth gate
   useEffect(() => {
@@ -197,7 +198,7 @@ VALUES (
             <>
               <div className="px-3 pt-3 pb-1.5 text-[10px] uppercase tracking-widest text-muted-foreground flex justify-between items-center">
                 <span>Brands ({brands.length})</span>
-                <button onClick={() => addBrand(reload)} className="text-primary hover:text-accent"><Plus size={14}/></button>
+                <button onClick={() => setShowAddBrand(true)} className="text-primary hover:text-accent" aria-label="Add brand"><Plus size={14}/></button>
               </div>
               <button
                 onClick={() => { setBrandId(null); setCategoryId(null); setNavOpen(false); }}
@@ -243,20 +244,25 @@ VALUES (
           />
         )}
       </main>
+      {showAddBrand && (
+        <PromptModal
+          title="New brand"
+          label="Brand name"
+          placeholder="e.g. Arcteryx"
+          onSubmit={async (name) => {
+            const slug = slugify(name);
+            const { error } = await supabase.from("brands").insert({ name, slug });
+            if (error) { toast.error(error.message); return; }
+            toast.success("Brand added");
+            reload();
+          }}
+          onClose={() => setShowAddBrand(false)}
+        />
+      )}
     </div>
   );
 }
 
-// ============== Brand quick add ==============
-async function addBrand(onDone: () => void) {
-  const name = prompt("Brand name?")?.trim();
-  if (!name) return;
-  const slug = slugify(name);
-  const { error } = await supabase.from("brands").insert({ name, slug });
-  if (error) { toast.error(error.message); return; }
-  toast.success("Brand added");
-  onDone();
-}
 
 // ============== Messages panel ==============
 function MessagesPanel() {
