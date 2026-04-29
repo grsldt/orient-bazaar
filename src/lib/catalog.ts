@@ -70,6 +70,33 @@ export function resolveImageUrl(url: string, base: string): string {
   return b + url.split("/").map(encodeURIComponent).join("/");
 }
 
+/**
+ * Build a thumbnail URL when possible. Supabase Storage public URLs can be
+ * served via the image-rendering endpoint with on-the-fly resize, which is
+ * dramatically faster than fetching full originals for grid thumbnails.
+ */
+export function thumbUrl(url: string, base: string, width = 480): string {
+  const full = resolveImageUrl(url, base);
+  if (!full) return "";
+  // Public storage object → switch to render endpoint with resize
+  const m = full.match(/^(https?:\/\/[^/]+)\/storage\/v1\/object\/public\/([^?]+)(\?.*)?$/);
+  if (m) {
+    return `${m[1]}/storage/v1/render/image/public/${m[2]}?width=${width}&quality=75&resize=contain`;
+  }
+  return full;
+}
+
+/**
+ * Default size set inferred from the product's category name.
+ * Returns shoe sizes for footwear-like categories, otherwise clothing sizes.
+ */
+export function defaultSizesFor(categoryName?: string | null): string[] {
+  const n = (categoryName || "").toLowerCase();
+  const isShoe = /(shoe|sneaker|boot|chaussure|trainer|runner|footwear|sandal)/.test(n);
+  if (isShoe) return ["39", "40", "41", "42", "43", "44", "45", "46"];
+  return ["XS", "S", "M", "L", "XL", "XXL"];
+}
+
 export function buildWhatsappUrl(phone: string, message: string): string {
   const num = phone.replace(/[^\d]/g, "");
   return `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
