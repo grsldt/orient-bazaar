@@ -105,6 +105,31 @@ const Index = () => {
           </button>
         </div>
 
+        {/* Mobile horizontal brand bar — always visible, scrollable */}
+        <div className="md:hidden sticky top-[44px] z-30 bg-ink border-b border-primary/40">
+          <div className="flex gap-1 overflow-x-auto px-2 py-2 scrollbar-hide [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              onClick={() => setBrandId(null)}
+              className={`shrink-0 px-3 py-1.5 text-[11px] uppercase tracking-widest font-bold whitespace-nowrap transition ${
+                brandId === null ? "bg-primary text-primary-foreground" : "bg-sidebar-accent text-background hover:bg-primary/80"
+              }`}
+            >
+              <span className="han mr-1">家</span>All
+            </button>
+            {brands.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => setBrandId(b.id)}
+                className={`shrink-0 px-3 py-1.5 text-[11px] uppercase tracking-wider whitespace-nowrap transition ${
+                  brandId === b.id ? "bg-primary text-primary-foreground font-bold" : "bg-sidebar-accent text-background hover:bg-primary/80"
+                }`}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {showHome ? (
           <HomePresentation brands={brands} settings={settings} onSelectBrand={(id) => setBrandId(id)} />
         ) : (
