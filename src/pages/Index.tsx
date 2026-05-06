@@ -149,7 +149,7 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="sticky top-[44px] md:top-0 z-20 bg-background border-b border-ink/20 px-3 md:px-4 py-2 md:py-3 flex flex-wrap gap-2 items-center">
+            <div className="sticky top-[88px] md:top-0 z-20 bg-background border-b border-ink/20 px-3 md:px-4 py-2 md:py-3 flex flex-wrap gap-2 items-center">
               <div className="relative flex-1 min-w-[160px]">
                 <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground"/>
                 <input
